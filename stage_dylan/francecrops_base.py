@@ -4,13 +4,13 @@ import numpy as np
 import geopandas as gpd
 from sklearn.metrics import accuracy_score
 
-x_train = np.load('stage_dylan/x_train.npy')
-y_train = np.load('stage_dylan/y_train.npy')
-meta_train = gpd.read_parquet('stage_dylan/meta_train.parquet')
+x_train = np.load('npy/x_train.npy')
+y_train = np.load('npy/y_train.npy')
+meta_train = gpd.read_parquet('npy/meta_train.parquet')
 
-x_test = np.load('stage_dylan/x_test.npy')
-y_test = np.load('stage_dylan/y_test.npy')
-meta_test = gpd.read_parquet('stage_dylan/meta_test.parquet')
+x_test = np.load('npy/x_test.npy')
+y_test = np.load('npy/y_test.npy')
+meta_test = gpd.read_parquet('npy/meta_test.parquet')
 
 print(f'x_train.shape: {x_train.shape}, y_train.shape: {y_train.shape}')
 print(f'x_test.shape: {x_test.shape}, y_test.shape: {y_test.shape}')
