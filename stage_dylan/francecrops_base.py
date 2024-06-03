@@ -61,17 +61,38 @@ print(f'Accuracy on test data with majority vote: {accuracy2}')
 print(f'Training time: {training_time:.2f} seconds')
 
 # %% graphique 
-sample_index = 23
-sample = x_train[sample_index]
 
-plt.figure()
+import csv
 
-plt.plot(sample[:, 23])
-plt.title(f'Crop type: {meta_train.iloc[sample_index].CODE_CULTU}')
+def create_crop_dict(csv_file_path):
+    crop_dict = {}
+    with open(csv_file_path, newline='',encoding='utf-8') as csvfile:
+        reader = csv.reader(csvfile, delimiter=';')
+        for row in reader:
+            crop_dict[row[0]] = row[1]
+    return crop_dict
 
-plt.xlabel('time_step')
-plt.ylabel('pixel_value')
 
-plt.show()
+crop_dict = create_crop_dict('REF_CULTURES_GROUPES_CULTURES_2021.csv')
+print(crop_dict)
+
+def plot_sample(x_train, meta_train, sample_index):
+    sample = x_train[sample_index]
+
+    plt.figure()
+
+    for i in range(sample.shape[1]):  
+        plt.plot(sample[:, i])
+
+    crop_type = crop_dict.get(meta_train.iloc[sample_index]["CODE_CULTU"])
+    plt.title(crop_type)
+    plt.xlabel('time_step')
+    plt.ylabel('pixel_value')
+
+    plt.legend([f'Line {i}' for i in range(sample.shape[1])])  
+
+    plt.show()
+
+plot_sample(x_train_reshaped, meta_train, 0)
 
 # %%
