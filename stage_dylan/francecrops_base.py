@@ -60,16 +60,18 @@ accuracy2 = accuracy_score(y_test, y_pred_majority_vote)
 print(f'Accuracy on test data with majority vote: {accuracy2}')
 print(f'Training time: {training_time:.2f} seconds')
 
-
-sample_index = 9
+# %% graphique 
+sample_index = 21
 sample = x_train[sample_index]
 
 plt.figure()
 
-plt.plot(sample[:, 9])
+plt.plot(sample[:, 21])
 plt.title(f'Crop type: {meta_train.iloc[sample_index].CODE_CULTU}')
 
-plt.xlabel('serie_temporelle')
+plt.xlabel('time_step')
 plt.ylabel('pixel_value')
 
 plt.show()
+
+# %%
