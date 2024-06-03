@@ -4,6 +4,8 @@ import numpy as np
 import geopandas as gpd
 from sklearn.metrics import accuracy_score
 
+import matplotlib.pyplot as plt
+
 x_train = np.load('npy/x_train.npy')
 y_train = np.load('npy/y_train.npy')
 meta_train = gpd.read_parquet('npy/meta_train.parquet')
@@ -32,8 +34,8 @@ training_time = time.time() - start_time
 
 y_pred = model.predict(x_test.reshape(x_test.shape[0], -1))
 
-accuracy = accuracy_score(y_test, y_pred)
-print(f'Accuracy on test data: {accuracy:.4f}')
+accuracy1 = accuracy_score(y_test, y_pred)
+print(f'Accuracy on test data: {accuracy1:.4f}')
 print(f'Training time: {training_time:.2f} seconds')
 
 # %% Training on each pixel time series individually and doing a majority vote
@@ -52,8 +54,22 @@ y_pred = model.predict(x_test_reshaped.reshape(x_test_reshaped.shape[0], -1))
 y_pred = y_pred.reshape(-1, 100)
 y_pred_majority_vote = np.apply_along_axis(lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred)
 
-accuracy = accuracy_score(y_test, y_pred_majority_vote)
-
-print(f'Accuracy on test data with majority vote: {accuracy:.4f}')
-print(f'Training time: {training_time:.2f} seconds')
 # %%
+accuracy2 = accuracy_score(y_test, y_pred_majority_vote)
+
+print(f'Accuracy on test data with majority vote: {accuracy2}')
+print(f'Training time: {training_time:.2f} seconds')
+
+
+sample_index = 9
+sample = x_train[sample_index]
+
+plt.figure()
+
+plt.plot(sample[:, 9])
+plt.title(f'Crop type: {meta_train.iloc[sample_index].CODE_CULTU}')
+
+plt.xlabel('serie_temporelle')
+plt.ylabel('pixel_value')
+
+plt.show()
