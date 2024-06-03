@@ -61,12 +61,12 @@ print(f'Accuracy on test data with majority vote: {accuracy2}')
 print(f'Training time: {training_time:.2f} seconds')
 
 # %% graphique 
-sample_index = 21
+sample_index = 23
 sample = x_train[sample_index]
 
 plt.figure()
 
-plt.plot(sample[:, 21])
+plt.plot(sample[:, 23])
 plt.title(f'Crop type: {meta_train.iloc[sample_index].CODE_CULTU}')
 
 plt.xlabel('time_step')
