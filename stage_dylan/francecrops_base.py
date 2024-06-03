@@ -3,7 +3,7 @@ import time
 import numpy as np
 import geopandas as gpd
 from sklearn.metrics import accuracy_score
-
+import csv
 import matplotlib.pyplot as plt
 
 x_train = np.load('npy/x_train.npy')
@@ -62,7 +62,6 @@ print(f'Training time: {training_time:.2f} seconds')
 
 # %% graphique 
 
-import csv
 
 def create_crop_dict(csv_file_path):
     crop_dict = {}
@@ -74,8 +73,6 @@ def create_crop_dict(csv_file_path):
 
 
 crop_dict = create_crop_dict('REF_CULTURES_GROUPES_CULTURES_2021.csv')
-print(crop_dict)
-
 def plot_sample(x_train, meta_train, sample_index):
     sample = x_train[sample_index]
 
@@ -93,6 +90,6 @@ def plot_sample(x_train, meta_train, sample_index):
 
     plt.show()
 
-plot_sample(x_train_reshaped, meta_train, 0)
+plot_sample(x_train_reshaped, meta_train, 1999)
 
 # %%
