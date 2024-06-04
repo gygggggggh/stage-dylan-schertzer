@@ -7,6 +7,7 @@ import csv
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import random
+import json
 
 x_train = np.load('npy/x_train.npy')
 y_train = np.load('npy/y_train.npy')
@@ -102,7 +103,7 @@ def plot_sample(x_train, meta_train, sample_index):
     plt.show()
 
 
-plot_sample(x_train_reshaped, meta_train, 34)
+plot_sample(x_train_reshaped, meta_train, 934)
 
 # %% show the france map usin shapefile
 
@@ -131,8 +132,8 @@ def plot_france(meta, crop_dict, geojson_path):
 
     plt.show()
 
-
 plot_france(meta_train, crop_dict, 'france.geojson')
+
 # %% un seule
 
 
@@ -149,7 +150,6 @@ def plot_point_on_map(meta, crop_dict, geojson_path, point_index):
 
     ax.scatter(point.geometry.x, point.geometry.y, color='red', s=100)
 
-    # Create a custom legend
     crop_name = crop_dict.get(point['CODE_CULTU'], "Unknown")
     red_patch = mpatches.Patch(color='red', label=crop_name)
     ax.legend(handles=[red_patch])
@@ -157,34 +157,105 @@ def plot_point_on_map(meta, crop_dict, geojson_path, point_index):
     plt.show()
 
 
-plot_point_on_map(meta_train, crop_dict, 'france.geojson', 34)
+plot_point_on_map(meta_train, crop_dict, 'france.geojson', 934)
 
 # %% random
 
 
-def user_crop(meta, crop_dict, geojson_path, x_train_reshaped, crop_type):
-    samples = meta[meta['CODE_CULTU'] == crop_type]
+def plot_random_sample_of_crop(meta, crop_dict, geojson_path, x_train_reshaped):
+    # Filter the meta DataFrame to only include rows with the specified crop code
+    crop_code = random.choice(meta['CODE_CULTU'].unique())
+    crop_meta = meta[meta['CODE_CULTU'] == crop_code]
+    # If there are no rows with the specified crop code, print an error message and return
+    if len(crop_meta) == 0:
+        print(f"No samples found for crop code {crop_code}")
+        return
 
-    if not samples.empty:
-        # Get indices that are in both samples and x_train_reshaped
-        common_indices = set(samples.index) & set(x_train_reshaped.index)
+    sample = crop_meta.sample(1)
 
-        if common_indices:
-            # Pick a random sample from the common indices
-            sample_index = random.choice(list(common_indices))
-            print(f"Sample index: {sample_index}")
+    sample_index = sample.index[0] % 2000
+    print(f"Selected sample index: {sample_index}")
+    if sample_index >= len(x_train_reshaped):
+        print(f"Index {sample_index} is out of range for x_train_reshaped")
+        return
 
-            # Plot the sample on the map
-            plot_point_on_map(meta, crop_dict, geojson_path, sample_index)
 
-            # Plot the sample
-            plot_sample(x_train_reshaped, meta, sample_index)
-        else:
-            print(f"No common samples found for crop type {crop_type} in x_train_reshaped")
-    else:
-        print(f"No samples found for crop type {crop_type}")
+    plot_sample(x_train_reshaped, meta, sample_index)
 
-        
-user_crop(meta_train, crop_dict, 'france.geojson', x_train_reshaped, 'MIS')
+    plot_point_on_map(meta, crop_dict, geojson_path, sample_index)
+
+
+plot_random_sample_of_crop(meta_train, crop_dict, 'france.geojson', x_train_reshaped,)
+
+# %%
+def plot_sample_by_crop(x_train, meta_train, crop_code):
+    indices = np.where(meta_train['CODE_CULTU'] == crop_code)[0]
+    if len(indices) == 0:
+        print(f"No samples found for crop code {crop_code}")
+        return
+
+    sample_index = np.random.choice(indices)
+
+    sample = x_train[sample_index]
+
+    plt.figure()
+
+    for i in range(sample.shape[1]):
+        plt.plot(sample[:, i])
+
+    crop_type = crop_dict.get(meta_train.iloc[sample_index]["CODE_CULTU"])
+    plt.title(crop_type)
+    plt.xlabel('time_step')
+    plt.ylabel('pixel_value')
+
+    legendList = ["Aerosols", "Blue", "Green", "Red",
+                  "Red Edge 1", "Red Edge 2",
+                  "Red Edge 3", "NIR", "Red Edge 4",
+                  "Water vapor", "SWIR 1", "SWIR 2"]
+
+    plt.legend([f'{legendList[i]}' for i in range(sample.shape[1])])
+
+    plt.show()
+
+plot_sample_by_crop(x_train_reshaped, meta_train, 'MIS')
+# %%
+def plot_point_on_map_by_crop(meta, crop_dict, geojson_path, crop_code):
+    indices = np.where(meta['CODE_CULTU'] == crop_code)[0]
+    if len(indices) == 0:
+        print(f"No samples found for crop code {crop_code}")
+        return
+
+    point_index = np.random.choice(indices)
+
+    meta = meta.to_crs(epsg=3857)
+    meta['geometry'] = meta.centroid
+
+    france = gpd.read_file(geojson_path)
+    france = france.to_crs(epsg=3857)
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    france.plot(ax=ax, color='white', edgecolor='black')
+    point = meta.iloc[point_index]
+
+    ax.scatter(point.geometry.x, point.geometry.y, color='red', s=100)
+
+    crop_name = crop_dict.get(point['CODE_CULTU'], "Unknown")
+    red_patch = mpatches.Patch(color='red', label=crop_name)
+    ax.legend(handles=[red_patch])
+
+    plt.show()
+
+# Example usage:
+plot_point_on_map_by_crop(meta_train, crop_dict, 'france.geojson', 'MIS')
+
+# %%
+def plot_crop_sample_and_map(x_train, meta, crop_dict, geojson_path):
+    crop_code = input("Enter a crop code: ")
+
+    plot_sample_by_crop(x_train, meta, crop_code)
+
+    plot_point_on_map_by_crop(meta, crop_dict, geojson_path, crop_code)
+
+plot_crop_sample_and_map(x_train_reshaped, meta_train, crop_dict, 'france.geojson')
 
 # %%
