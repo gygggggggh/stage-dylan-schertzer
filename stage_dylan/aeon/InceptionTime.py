@@ -2,10 +2,15 @@ import time
 import numpy as np
 import os
 from aeon.classification.deep_learning import InceptionTimeClassifier
+from torch.utils.data import DataLoader
+import torch
+from sklearn.metrics import accuracy_score
+import sys
+
 
 # Environment setup
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "3"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 # Load data
 x_train = np.load("stage_dylan/visulisation/npy/x_train.npy")
@@ -20,8 +25,11 @@ def select_samples_per_class(x, y, n_samples):
 
     for cls in unique_classes:
         cls_indices = np.where(y == cls)[0]
-        selected_indices = cls_indices if len(cls_indices) <= n_samples else np.random.choice(
-            cls_indices, n_samples, replace=False)
+        selected_indices = (
+            cls_indices
+            if len(cls_indices) <= n_samples
+            else np.random.choice(cls_indices, n_samples, replace=False)
+        )
         new_x.append(x[selected_indices])
         new_y.append(y[selected_indices])
 
@@ -42,34 +50,58 @@ def select_and_reshape(x, y, n_values):
     return reshaped_results
 
 
-def fit_and_score(x_train, y_train, x_test, y_test):
-    model = InceptionTimeClassifier(n_epochs=1, batch_size=1, verbose=1)
+def fit_and_score(x_train, y_train, x_test, y_test, N):
+    model = InceptionTimeClassifier(n_epochs=100, batch_size=512, verbose=0)
     start_time = time.time()
+    original_stdout = sys.stdout
+    sys.stdout = open(os.devnull, "w")
     model.fit(x_train, y_train)
+    sys.stdout = original_stdout
     training_time = time.time() - start_time
 
-    accuracy = model.score(x_test, y_test)
     print(f"Training time: {training_time:.2f} seconds")
-    print(f"Accuracy on test data: {accuracy:.4f}")
+    dl_list = []
+    dl = DataLoader(
+        torch.tensor(x_train), batch_size=256, shuffle=False, drop_last=False
+    )
 
+    start_time = time.time()
+
+    for x in dl:
+        dl_list.append(model.predict(x.numpy()))
+    y_pred = np.concatenate(dl_list)
+    y_pred = np.concatenate(dl_list)
+    y_pred = y_pred.reshape(-1, 100)
+    y_pred = y_pred.repeat(len(y_test) // len(y_pred) // 100)
+    accuracy = accuracy_score(y_test, y_pred)
     return accuracy
 
 
 def main():
-    n_values = [5, 10, 50, 100]
-    results = select_and_reshape(x_train, y_train, n_values)
+    with open("output.txt", "w") as f:
+        original_stdout = sys.stdout
+        sys.stdout = f
 
-    for n, (x_train_reshaped, y_train_reshaped) in results.items():
+        n_values = [5, 10]
+        results = select_and_reshape(x_train, y_train, n_values)
 
-        print(f"\nFor N = {n}:")
-        print(
-            f"x_train.shape: {x_train_reshaped.shape}, y_train.shape: {y_train_reshaped.shape}")
-        accuracy = fit_and_score(x_train_reshaped, y_train_reshaped,
-                                 x_test.reshape(-1, 60, 12).transpose(0, 2, 1), y_test.repeat(100))
+        for n, (x_train_reshaped, y_train_reshaped) in results.items():
+            print(f"\nFor N = {n}:")
+            print(
+                f"x_train.shape: {x_train_reshaped.shape}, y_train.shape: {y_train_reshaped.shape}"
+            )
 
-    print(f"\nNumber of classes in train: {len(np.unique(y_train))}")
-    print(f"Number of classes in test: {len(np.unique(y_test))}")
-    print("Done!")
+            time = fit_and_score(
+                x_train_reshaped,
+                y_train_reshaped,
+                x_test.reshape(-1, 60, 12).transpose(0, 2, 1),
+                y_test.repeat(100),
+                n,
+            )
+        print(f"Accuracy on test data: {time:.4f}")
+        print("Done!")
+
+        sys.stdout = original_stdout  # Reset the standard output to its original value
 
 
 if __name__ == "__main__":

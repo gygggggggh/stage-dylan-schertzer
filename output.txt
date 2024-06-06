@@ -1,0 +1,6 @@
+
+For N = 5:
+x_train.shape: (10000, 12, 60), y_train.shape: (10000,)
+Training time: 2947.79 seconds
+Accuracy on test data: 0.5221
+Done!

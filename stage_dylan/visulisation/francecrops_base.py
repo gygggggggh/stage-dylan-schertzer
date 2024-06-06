@@ -7,7 +7,7 @@ import csv
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import random
-import json
+
 
 x_train = np.load('npy/x_train.npy')
 y_train = np.load('npy/y_train.npy')
