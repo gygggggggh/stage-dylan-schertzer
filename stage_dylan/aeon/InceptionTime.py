@@ -10,7 +10,7 @@ import logging
 
 
 # Set up logging
-logging.basicConfig(filename='output.log', level=logging.INFO)
+logging.basicConfig(filename="output.log", level=logging.INFO)
 
 # Environment setup
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "3"
@@ -22,13 +22,16 @@ y_train = np.load("stage_dylan/visulisation/npy/y_train.npy")
 x_test = np.load("stage_dylan/visulisation/npy/x_test.npy")
 y_test = np.load("stage_dylan/visulisation/npy/y_test.npy")
 
-#%%
+
+# %%
 def _20_random_seeds():
-    list = np.random.randint(low=0, high=1e9, size=20) 
+    list = np.random.randint(low=0, high=1e9, size=20)
     logging.info(f"20 random seeds: {list}")
     return list
 
-#%%
+
+# %%
+
 
 def select_samples_per_class(x, y, n_samples):
     unique_classes = np.unique(y)
@@ -62,7 +65,7 @@ def select_and_reshape(x, y, n_values):
 
 
 def fit_and_score(x_train, y_train, x_test, y_test, N):
-    model = InceptionTimeClassifier(n_epochs=1, batch_size=512, verbose=0)
+    model = InceptionTimeClassifier(n_epochs=50, batch_size=512, verbose=1)
     start_time = time.time()
     model.fit(x_train, y_train)
     training_time = time.time() - start_time
@@ -86,7 +89,7 @@ def fit_and_score(x_train, y_train, x_test, y_test, N):
 
 
 def fit_and_score_majority_vote(x_train, y_train, x_test, y_test, N):
-    model = InceptionTimeClassifier(n_epochs=1, batch_size=512, verbose=0)
+    model = InceptionTimeClassifier(n_epochs=50, batch_size=512, verbose=1)
     start_time = time.time()
     model.fit(x_train, y_train)
     training_time = time.time() - start_time
@@ -107,16 +110,20 @@ def fit_and_score_majority_vote(x_train, y_train, x_test, y_test, N):
     y_pred_majority_vote = np.apply_along_axis(
         lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred
     )
-    y_pred_majority_vote = y_pred_majority_vote.repeat(500)
+    y_pred_majority_vote = y_pred_majority_vote.repeat(
+        len(y_test) // len(y_pred_majority_vote // 100)
+    )
 
     accuracy = accuracy_score(y_test, y_pred_majority_vote)
     return accuracy
 
 
 def fit_and_score_20times(x_train, y_train, x_test, y_test, N, seed):
-    accuracy_list= []
+    accuracy_list = []
     for SEED in seed:
-        model = InceptionTimeClassifier(n_epochs=1, batch_size=512, verbose=0, random_state=SEED)
+        model = InceptionTimeClassifier(
+            n_epochs=50, batch_size=512, verbose=1, random_state=SEED
+        )
         start_time = time.time()
         model.fit(x_train, y_train)
         training_time = time.time() - start_time
@@ -140,10 +147,13 @@ def fit_and_score_20times(x_train, y_train, x_test, y_test, N, seed):
 
     return average_accuracy
 
+
 def fit_and_score_majority_vote_20times(x_train, y_train, x_test, y_test, N, seed):
-    accuracy_list= []
+    accuracy_list = []
     for SEED in seed:
-        model = InceptionTimeClassifier(n_epochs=1, batch_size=512, verbose=0, random_state=SEED)
+        model = InceptionTimeClassifier(
+            n_epochs=50, batch_size=512, verbose=1, random_state=SEED
+        )
         start_time = time.time()
         model.fit(x_train, y_train)
         training_time = time.time() - start_time
@@ -165,7 +175,9 @@ def fit_and_score_majority_vote_20times(x_train, y_train, x_test, y_test, N, see
         y_pred_majority_vote = np.apply_along_axis(
             lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred
         )
-        y_pred_majority_vote = y_pred_majority_vote.repeat(len(y_test) // len(y_pred_majority_vote))
+        y_pred_majority_vote = y_pred_majority_vote.repeat(
+            len(y_test) // len(y_pred_majority_vote)
+        )
         accuracy = accuracy_score(y_test, y_pred_majority_vote)
         accuracy_list.append(accuracy)
     average_accuracy = sum(accuracy_list) / len(accuracy_list)
@@ -174,8 +186,9 @@ def fit_and_score_majority_vote_20times(x_train, y_train, x_test, y_test, N, see
 
 
 def main():
-    SEED= _20_random_seeds()
-    n_values = [1]
+    total_time = time.time()
+    SEED = _20_random_seeds()
+    n_values = [5]
     results = select_and_reshape(x_train, y_train, n_values)
 
     for n, (x_train_reshaped, y_train_reshaped) in results.items():
@@ -184,14 +197,17 @@ def main():
             f"x_train.shape: {x_train_reshaped.shape}, y_train.shape: {y_train_reshaped.shape}"
         )
 
-        #accuracy = fit_and_score_20times(x_train_reshaped, y_train_reshaped, x_test, y_test, n, SEED)
-        #logging.info(f"Accuracy on test data: {accuracy:.4f}") 
+        accuracy = fit_and_score_20times(
+            x_train_reshaped, y_train_reshaped, x_test, y_test, n, SEED
+        )
+        logging.info(f"Accuracy on test data: {accuracy:.4f}")
 
     accuracy_majority_vote = fit_and_score_majority_vote_20times(
         x_train_reshaped, y_train_reshaped, x_test, y_test, n, SEED
     )
     logging.info(f"Accuracy on test data with majority vote: {accuracy_majority_vote}")
-    logging.info("Done!")
+    logging.info(f"Total time: {time.time() - total_time:.2f} seconds")
+
 
 if __name__ == "__main__":
     main()
