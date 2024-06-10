@@ -1,3 +1,9 @@
 *.npy
 *.parquet
 *.keras
+*.png
+*log
+lightning_logs/
+clothing-dataset/
+data/
+*.pth
