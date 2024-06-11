@@ -1,36 +1,33 @@
+# training_module.py
 from lightly.loss import NTXentLoss
 from lightly.models.modules.heads import SimCLRProjectionHead
 import pytorch_lightning as pl
-import torchvision
 import torch.nn as nn
 import torch
+from inception import Inception
 
 
 class SimCLRModule(pl.LightningModule):
     def __init__(self):
         super().__init__()
 
-        # create a ResNet backbone and remove the classification head
-        resnet = torchvision.models.resnet18()
-        self.backbone = nn.Sequential(*list(resnet.children())[:-1])
-
-        hidden_dim = resnet.fc.in_features
+        self.backbone = Inception(
+            in_channels=60, n_filters=32
+        )
+        self.flatten = nn.Flatten()
+        self.linear = nn.Linear(1536, 128)
+        hidden_dim = 128
         self.projection_head = SimCLRProjectionHead(hidden_dim, hidden_dim, 128)
 
         self.criterion = NTXentLoss()
 
-        # Set requires_grad=True for all parameters in the backbone and projection_head
-        for param in self.backbone.parameters():
-            param.requires_grad = True
-        for param in self.projection_head.parameters():
-            param.requires_grad = True
-
     def forward(self, x):
-        x = x.view(-1, 1, 1, 1).float()
-        x = x.repeat(1, 3, 1, 1)  # repeat the single channel to get 3 channels
+
         h = self.backbone(x)
-        h = h.view(h.size(0), -1)
+        h = self.flatten(h)
+        h = self.linear(h)
         z = self.projection_head(h)
+        return z
 
     def training_step(self, batch, batch_idx):
         (x0, x1) = batch
@@ -48,13 +45,13 @@ class SimCLRModule(pl.LightningModule):
         return [optim], [scheduler]
 
     def train_dataloader(self):
-        dataset = torchvision.datasets.CIFAR10(
-            root="data",
-            train=True,
-            download=True,
-            transform=torchvision.transforms.ToTensor(),
-        )
-        dataloader = torch.utils.data.DataLoader(
-            dataset, batch_size=128, num_workers=4, drop_last=True, shuffle=True
-        )
-        return dataloader
+        pass
+
+    def test_step(self, batch, batch_idx):
+        x0, x1 = batch
+        z0 = self.forward(x0)
+        z1 = self.forward(x1)
+        loss = self.criterion(z0, z1)
+        acc = (z0.argmax(dim=1) == z1.argmax(dim=1)).float().mean()
+        self.log("test_acc", acc, prog_bar=True)
+        return loss

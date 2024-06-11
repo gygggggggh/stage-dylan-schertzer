@@ -7,3 +7,5 @@ lightning_logs/
 clothing-dataset/
 data/
 *.pth
+*.tfevents
+*.yaml
