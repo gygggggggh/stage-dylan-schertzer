@@ -257,5 +257,3 @@ def plot_crop_sample_and_map(x_train, meta, crop_dict, geojson_path):
     plot_point_on_map_by_crop(meta, crop_dict, geojson_path, crop_code)
 
 plot_crop_sample_and_map(x_train_reshaped, meta_train, crop_dict, 'france.geojson')
-
-# %%

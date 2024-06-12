@@ -53,5 +53,5 @@ class SimCLRModule(pl.LightningModule):
         z1 = self.forward(x1)
         loss = self.criterion(z0, z1)
         acc = (z0.argmax(dim=1) == z1.argmax(dim=1)).float().mean()
-        self.log("test_acc", acc, prog_bar=True)
+        self.log("test_acc",acc)
         return loss

@@ -165,6 +165,15 @@ class SimCLRModel(pl.LightningModule):
         loss = self.criterion(z0, z1)
         self.log("train_loss_ssl", loss)
         return loss
+    
+    def test_step(self, batch, batch_idx):
+        (x0, x1), _, _ = batch
+        z0 = self.forward(x0)
+        z1 = self.forward(x1)
+        loss = self.criterion(z0, z1)
+        acc = (z0.argmax(dim=1) == z1.argmax(dim=1)).float().mean()
+        self.log("test_acc", acc, prog_bar=True)
+        return loss
 
     def configure_optimizers(self):
         optim = torch.optim.SGD(
@@ -180,6 +189,8 @@ class SimCLRModel(pl.LightningModule):
 model = SimCLRModel()
 trainer = pl.Trainer(max_epochs=max_epochs, devices=1, accelerator="gpu")
 trainer.fit(model, dataloader_train_simclr)
+test_acuracy = trainer.test(model, dataloader_test)
+print(test_acuracy)
 
 # %%
 # Next we create a helper function to generate embeddings
@@ -187,7 +198,6 @@ trainer.fit(model, dataloader_train_simclr)
 # Note that only the backbone is needed to generate embeddings,
 # the projection head is only required for the training.
 # Make sure to put the model into eval mode for this part!
-
 
 def generate_embeddings(model, dataloader):
     """Generates representations for all images in the dataloader with

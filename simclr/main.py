@@ -1,12 +1,37 @@
 import numpy as np
 from torch.utils.data import DataLoader
-from pytorch_lightning import Trainer
+import pytorch_lightning as pl
 from dataset import NPYDataset
 from training_module import SimCLRModule
 import torch
+import logging
 
 
-def main():
+logging.basicConfig(filename="output.log", level=logging.INFO)
+
+def get20randomSeeds():
+    seeds = []
+    for i in range(20):
+        seeds.append(np.random.randint(0, 1e9))
+    return seeds
+
+def select_samples_per_class(x, y, n_samples):
+    unique_classes = np.unique(y)
+    new_x, new_y = [], []
+
+    for cls in unique_classes:
+        cls_indices = np.where(y == cls)[0]
+        selected_indices = (
+            cls_indices
+            if len(cls_indices) <= n_samples
+            else np.random.choice(cls_indices, n_samples, replace=False)
+        )
+        new_x.append(x[selected_indices])
+        new_y.append(y[selected_indices])
+
+    return np.concatenate(new_x), np.concatenate(new_y)
+
+def main(seed):
     torch.cuda.empty_cache()
     # Load your numpy arrays
     x_train = np.load(
@@ -43,30 +68,36 @@ def main():
         test_dataset, batch_size=512, shuffle=False, num_workers=19, drop_last=False
     )
 
+    n_values = [5,10,20,50,100]
+
     # Create the SimCLR model
     model = SimCLRModule()
     torch.cuda.empty_cache()
+    acuracy = []
     # Train the model
-    for i in range(20):
-        print(f"Training model with seed {i}")
-        torch.manual_seed(i)
-    trainer = Trainer(
-        max_epochs=10,
-    )
-    trainer.fit(model, train_loader, test_loader)
+    for n in n_values:
+        x_train_selected, y_train_selected = select_samples_per_class(x_train, y_train, n)
+        train_dataset = NPYDataset(x_train_selected, y_train_selected)
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=512,
+            shuffle=True,
+            num_workers=19,
+        )
+        for i in range(20):
+            torch.manual_seed(seed[i])
+            pl.seed_everything(seed[i])
+            trainer = pl.Trainer(max_epochs=100)
+            trainer.fit(model, train_loader, test_loader)
+            test_results = trainer.test(model, test_loader)
+            test_accuracy = test_results[0]['test_acc']
+            acuracy.append(test_accuracy)
+        logging.info(f"the accuracy for n = {n} is {sum(acuracy)/len(acuracy)}")
+        acuracy = []
 
-    # Save the model
-    torch.save(model.state_dict(), "model.pth")
 
-    # Load the model
-    model = SimCLRModule()
-    model.load_state_dict(torch.load("model.pth"))
-    model.eval()
-
-    # Test the model
-    test_accuracy = trainer.test(model, test_loader)
-    print(f"Test accuracy: {test_accuracy}")
 
 
 if __name__ == "__main__":
-    main()
+    main(get20randomSeeds())
+
