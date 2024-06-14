@@ -5,15 +5,15 @@ from dataset import NPYDataset
 from training_module import SimCLRModule
 import torch
 import logging
-
+from sklearn.metrics import accuracy_score
+from cuml.linear_model import LogisticRegression
 
 logging.basicConfig(filename="output.log", level=logging.INFO)
 
+
 def get20randomSeeds():
-    seeds = []
-    for i in range(20):
-        seeds.append(np.random.randint(0, 1e9))
-    return seeds
+    return [np.random.randint(0, 1e9) for _ in range(20)]
+
 
 def select_samples_per_class(x, y, n_samples):
     unique_classes = np.unique(y)
@@ -31,8 +31,10 @@ def select_samples_per_class(x, y, n_samples):
 
     return np.concatenate(new_x), np.concatenate(new_y)
 
-def main(seed):
+
+def main(seeds):
     torch.cuda.empty_cache()
+
     # Load your numpy arrays
     x_train = np.load(
         "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/x_train.npy"
@@ -53,51 +55,62 @@ def main(seed):
     print(f"x_test shape: {x_test.shape}")
     print(f"y_test shape: {y_test.shape}")
 
-    # Create the datasets
-    train_dataset = NPYDataset(x_train, y_train)
-    test_dataset = NPYDataset(x_test, y_test)
-
-    # Create the data loaders
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=512,
-        shuffle=True,
-        num_workers=19,
-    )
-    test_loader = DataLoader(
-        test_dataset, batch_size=512, shuffle=False, num_workers=19, drop_last=False
-    )
-
-    n_values = [5,10,20,50,100]
+    n_values = [5, 10, 50, 100]
 
     # Create the SimCLR model
     model = SimCLRModule()
     torch.cuda.empty_cache()
-    acuracy = []
-    # Train the model
+
     for n in n_values:
-        x_train_selected, y_train_selected = select_samples_per_class(x_train, y_train, n)
+        x_train_selected, y_train_selected = select_samples_per_class(
+            x_train, y_train, n
+        )
+        logging.info(
+            f"Selected data for n = {n} is of size {x_train_selected.shape} and {y_train_selected.shape}"
+        )
+
         train_dataset = NPYDataset(x_train_selected, y_train_selected)
         train_loader = DataLoader(
-            train_dataset,
-            batch_size=512,
-            shuffle=True,
-            num_workers=19,
+            train_dataset, batch_size=512, shuffle=True, num_workers=19
         )
-        for i in range(20):
-            torch.manual_seed(seed[i])
-            pl.seed_everything(seed[i])
+        test_dataset = NPYDataset(x_test, y_test)
+        test_loader = DataLoader(
+            test_dataset, batch_size=512, shuffle=False, num_workers=19, drop_last=False
+        )
+
+        accuracies = []
+        for seed in seeds:
+            torch.manual_seed(seed)
+            pl.seed_everything(seed)
+            model.inference = False
             trainer = pl.Trainer(max_epochs=100)
             trainer.fit(model, train_loader, test_loader)
-            test_results = trainer.test(model, test_loader)
-            test_accuracy = test_results[0]['test_acc']
-            acuracy.append(test_accuracy)
-        logging.info(f"the accuracy for n = {n} is {sum(acuracy)/len(acuracy)}")
-        acuracy = []
 
+            # Switch the model to evaluation mode
+            model.eval()
+            model.inference = True
 
+            # Extract H representations from the model
+            H_train = []
+            H_test = []
+            with torch.no_grad():
+                for x, y in train_loader:
+                    H_train.append(model.get_h(x).cpu().numpy())
+                for x, y in test_loader:
+                    H_test.append(model.get_h(x).cpu().numpy())
+            H_train = np.concatenate(H_train)
+            H_test = np.concatenate(H_test)
+
+            # Train a logistic regression model on top of the representations
+            clf = LogisticRegression()
+            clf.fit(H_train, y_train_selected)
+            y_pred = clf.predict(H_test)
+            acc = accuracy_score(y_test, y_pred)
+            accuracies.append(acc)
+        logging.info(f"Accuracy for n = {n}  is {sum(accuracies)/len(accuracies)}")
 
 
 if __name__ == "__main__":
-    main(get20randomSeeds())
+    seeds = get20randomSeeds()
+    main(seeds)
 

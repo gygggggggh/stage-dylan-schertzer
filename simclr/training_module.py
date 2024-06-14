@@ -4,28 +4,65 @@ from lightly.models.modules.heads import SimCLRProjectionHead
 import pytorch_lightning as pl
 import torch.nn as nn
 import torch
-from inception import Inception
+from inception import Inception, InceptionBlock
+import numpy as np
+import torch.nn.functional as F
+
+
+class Flatten(nn.Module):
+    def __init__(self, out_features):
+        super(Flatten, self).__init__()
+        self.output_dim = out_features
+
+    def forward(self, x):
+        return x.view(-1, self.output_dim)
+
+
+class Reshape(nn.Module):
+    def __init__(self, out_shape):
+        super(Reshape, self).__init__()
+        self.out_shape = np.transpose(out_shape)
+
+    def forward(self, x):
+        return x
+
+
+InceptionTime = nn.Sequential(
+    Reshape(out_shape=(60, 60)),  # bizarre
+    InceptionBlock(
+        in_channels=12,
+        n_filters=32,
+        kernel_sizes=[5, 11, 23],
+        bottleneck_channels=32,
+        use_residual=True,
+        activation=nn.ReLU(),
+    ),
+    InceptionBlock(
+        in_channels=32 * 4,
+        n_filters=32,
+        kernel_sizes=[5, 11, 23],
+        bottleneck_channels=32,
+        use_residual=True,
+        activation=nn.ReLU(),
+    ),
+    nn.AdaptiveAvgPool1d(output_size=1),
+    Flatten(out_features=32 * 4 * 1),
+    
+)
 
 
 class SimCLRModule(pl.LightningModule):
     def __init__(self):
         super().__init__()
-
-        self.backbone = Inception(
-            in_channels=60, n_filters=32
-        )
-        self.flatten = nn.Flatten()
-        self.linear = nn.Linear(1536, 128)
+        self.backbone = InceptionTime
         hidden_dim = 128
         self.projection_head = SimCLRProjectionHead(hidden_dim, hidden_dim, 128)
 
         self.criterion = NTXentLoss()
 
     def forward(self, x):
-
+        x = x.transpose(1, 2)
         h = self.backbone(x)
-        h = self.flatten(h)
-        h = self.linear(h)
         z = self.projection_head(h)
         return z
 
@@ -47,11 +84,7 @@ class SimCLRModule(pl.LightningModule):
     def train_dataloader(self):
         pass
 
-    def test_step(self, batch, batch_idx):
-        x0, x1 = batch
-        z0 = self.forward(x0)
-        z1 = self.forward(x1)
-        loss = self.criterion(z0, z1)
-        acc = (z0.argmax(dim=1) == z1.argmax(dim=1)).float().mean()
-        self.log("test_acc",acc)
-        return loss
+    def get_h(self, x):
+        x = x.transpose(1, 2)
+        h = self.backbone(x)
+        return h

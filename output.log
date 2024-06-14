@@ -1,6 +1,1 @@
-INFO:root:the accuracy for n = 5 is 0.2439649984240532
-INFO:root:the accuracy for n = 10 is 0.2830249987542629
-INFO:root:the accuracy for n = 20 is 0.4134449988603592
-INFO:root:the accuracy for n = 50 is 0.4868650004267693
-INFO:root:the accuracy for n = 100 is 0.5895250022411347
-
+INFO:root:Selected data for n = 5 is of size (100, 100, 60, 12) and (100,)
