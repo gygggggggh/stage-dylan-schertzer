@@ -1,12 +1,13 @@
-import numpy as np
-from torch.utils.data import DataLoader
-import pytorch_lightning as pl
-from dataset import NPYDataset
+# import the simCLR model
 from training_module import SimCLRModule
 import torch
 import logging
 from sklearn.metrics import accuracy_score
 from cuml.linear_model import LogisticRegression
+import numpy as np
+from dataset import NPYDataset
+from torch.utils.data import DataLoader
+import pytorch_lightning as pl
 
 logging.basicConfig(filename="output.log", level=logging.INFO)
 
@@ -60,57 +61,64 @@ def main(seeds):
     # Create the SimCLR model
     model = SimCLRModule()
     torch.cuda.empty_cache()
-
+    model.load_state_dict(torch.load("simCLR.pth"))
+    model.inference = True
+    accuracies = []
+    acuracies_bef = []
     for n in n_values:
-        x_train_selected, y_train_selected = select_samples_per_class(
-            x_train, y_train, n
-        )
-        logging.info(
-            f"Selected data for n = {n} is of size {x_train_selected.shape} and {y_train_selected.shape}"
-        )
-
-        train_dataset = NPYDataset(x_train_selected, y_train_selected)
-        train_loader = DataLoader(
-            train_dataset, batch_size=512, shuffle=True, num_workers=19
-        )
-        test_dataset = NPYDataset.getall(x_test, y_test)
-        test_loader = DataLoader(
-            test_dataset, batch_size=512, shuffle=False, num_workers=19, drop_last=False
-        )
-
-        accuracies = []
         for seed in seeds:
             torch.manual_seed(seed)
             pl.seed_everything(seed)
-            model.inference = False
-            trainer = pl.Trainer(max_epochs=100,log_every_n_steps=10)
-            trainer.fit(model, train_loader, test_loader)
+            x_train_selected, y_train_selected = select_samples_per_class(
+                x_train, y_train, n
+            )
 
-            # Switch the model to evaluation mode
-            model.eval()
-            model.inference = True
+            train_dataset = NPYDataset(x_train_selected, y_train_selected)
+            train_loader = DataLoader(
+                train_dataset, batch_size=512, shuffle=False, num_workers=19
+            )
+            test_dataset = NPYDataset(x_test, y_test)
+            test_loader = DataLoader(
+                test_dataset, batch_size=512, shuffle=False, num_workers=19, drop_last=False
+            )
 
-            # Extract H representations from the model
             H_train = []
             H_test = []
+            hbef_train = []
+            hbef_test = []
             with torch.no_grad():
                 for x, y in train_loader:
+                    #print(f"shape of x_train: {x.shape}")
                     H_train.append(model.get_h(x).cpu().numpy())
+                    hbef_train.append(x.cpu().numpy())
                 for x, y in test_loader:
+                    #print(f"shape of x_test: {x.shape}")
                     H_test.append(model.get_h(x).cpu().numpy())
+                    hbef_test.append(x.cpu().numpy())
             H_train = np.concatenate(H_train)
             H_test = np.concatenate(H_test)
-
+            hbef_train = np.concatenate(hbef_train)
+            hbef_test = np.concatenate(hbef_test)
+            print(H_train.shape, H_test.shape, hbef_train.shape, hbef_test.shape)
             # Train a logistic regression model on top of the representations
-            clf = LogisticRegression()
+            clf = LogisticRegression(max_iter=1000)
             clf.fit(H_train, y_train_selected)
             y_pred = clf.predict(H_test)
             acc = accuracy_score(y_test, y_pred)
             accuracies.append(acc)
-        logging.info(f"Accuracy for n = {n}  is {sum(accuracies)/len(accuracies)}")
+            # Train a logistic regression model on top of the representations befoore the model
+            clf = LogisticRegression(max_iter=1000)
+            clf.fit(hbef_train.reshape(hbef_train.shape[0], -1), y_train_selected)
+            y_pred = clf.predict(hbef_test.reshape(hbef_test.shape[0], -1))
+            acc = accuracy_score(y_test, y_pred)
+            acuracies_bef.append(acc)
+        logging.info(f" Before Accuracy for n = {n}  is {sum(acuracies_bef)/len(acuracies_bef):.4f}")
+        logging.info(f"Accuracy for n = {n}  is {sum(accuracies)/len(accuracies):.4f}")
+        accuracies = []
+        acuracies_bef = []
+
 
 
 if __name__ == "__main__":
     seeds = get20randomSeeds()
     main(seeds)
-

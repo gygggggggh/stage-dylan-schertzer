@@ -16,5 +16,10 @@ class NPYDataset(Dataset):
         # print(f"rand1: {rand1}, rand2: {rand2}")
         return self.data[index, rand1], self.data[index, rand2]
 
+    @staticmethod
+    def getall(x_test, y_test):
+        x_test = x_test.reshape(-1, 60, 12)
+        return torch.from_numpy(x_test).float(), torch.from_numpy(y_test).float()
+
     def __len__(self):
         return len(self.data)

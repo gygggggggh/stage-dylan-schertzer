@@ -1,1 +1,8 @@
-INFO:root:Selected data for n = 5 is of size (100, 100, 60, 12) and (100,)
+INFO:root: Before Accuracy for n = 5  is 0.3827
+INFO:root:Accuracy for n = 5  is 0.3376
+INFO:root: Before Accuracy for n = 10  is 0.4463
+INFO:root:Accuracy for n = 10  is 0.3748
+INFO:root: Before Accuracy for n = 50  is 0.5728
+INFO:root:Accuracy for n = 50  is 0.3978
+INFO:root: Before Accuracy for n = 100  is 0.6271
+INFO:root:Accuracy for n = 100  is 0.3740
