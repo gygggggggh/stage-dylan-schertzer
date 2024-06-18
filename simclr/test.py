@@ -65,13 +65,14 @@ def main(seeds):
     model.inference = True
     accuracies = []
     acuracies_bef = []
+    acuracies_majority = []
     for n in n_values:
         for seed in seeds:
             torch.manual_seed(seed)
             pl.seed_everything(seed)
             x_train_selected, y_train_selected = select_samples_per_class(
                 x_train, y_train, n
-            )
+            )   
 
             train_dataset = NPYDataset(x_train_selected, y_train_selected)
             train_loader = DataLoader(
@@ -96,9 +97,11 @@ def main(seeds):
                     H_test.append(model.get_h(x).cpu().numpy())
                     hbef_test.append(x.cpu().numpy())
             H_train = np.concatenate(H_train)
-            H_test = np.concatenate(H_test)
+            H_test = np.concatenate(H_test, axis=0)
             hbef_train = np.concatenate(hbef_train)
             hbef_test = np.concatenate(hbef_test)
+            print(f"shape of H_test: {H_test.shape}")
+            print(f"shape of hbef_test: {hbef_test.shape}")
             print(H_train.shape, H_test.shape, hbef_train.shape, hbef_test.shape)
             # Train a logistic regression model on top of the representations
             clf = LogisticRegression(max_iter=1000)
@@ -112,13 +115,26 @@ def main(seeds):
             y_pred = clf.predict(hbef_test.reshape(hbef_test.shape[0], -1))
             acc = accuracy_score(y_test, y_pred)
             acuracies_bef.append(acc)
+            # Train a logistic regression model on top of the representations and majority vote
+            clf = LogisticRegression(max_iter=1000)
+            clf.fit(H_train, y_train_selected)
+            y_pred = clf.predict(H_test)
+            y_pred = y_pred.reshape(-1, 1)
+            y_pred_majority_vote = np.apply_along_axis(
+                lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred
+            )
+            acc = accuracy_score(y_test, y_pred_majority_vote)
+            acuracies_majority.append(acc)
         logging.info(f" Before Accuracy for n = {n}  is {sum(acuracies_bef)/len(acuracies_bef):.4f}")
         logging.info(f"Accuracy for n = {n}  is {sum(accuracies)/len(accuracies):.4f}")
+        logging.info(f"Majority vote Accuracy for n = {n}  is {sum(acuracies_majority)/len(acuracies_majority):.4f}")
         accuracies = []
         acuracies_bef = []
-
 
 
 if __name__ == "__main__":
     seeds = get20randomSeeds()
     main(seeds)
+    print("Done")
+    print("Check the output.log file for the results.")
+

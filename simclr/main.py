@@ -1,5 +1,5 @@
 import numpy as np
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader    
 import pytorch_lightning as pl
 from dataset import NPYDataset
 from training_module import SimCLRModule
