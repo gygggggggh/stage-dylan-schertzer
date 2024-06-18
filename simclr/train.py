@@ -6,7 +6,6 @@ import pytorch_lightning as pl
 from dataset import NPYDataset
 from training_module import SimCLRModule
 import torch
-import logging
 
 
 CONFIG = {
@@ -17,7 +16,7 @@ CONFIG = {
     "model_save_path": "simCLR.pth",
     "batch_size": 512,
     "num_workers": 19,
-    "max_epochs": 1000,
+    "max_epochs": 100,
 }
 def main(config):
     """

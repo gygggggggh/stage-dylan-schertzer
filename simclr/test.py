@@ -1,24 +1,26 @@
-# import the simCLR model
-from training_module import SimCLRModule
-import torch
 import logging
-from sklearn.metrics import accuracy_score
-from cuml.linear_model import LogisticRegression
 import numpy as np
-from dataset import NPYDataset
-from torch.utils.data import DataLoader
+import torch
 import pytorch_lightning as pl
+from cuml.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from torch.utils.data import DataLoader
+from training_module import SimCLRModule
+from dataset import NPYDataset
 
+# Configure logging
 logging.basicConfig(filename="output.log", level=logging.INFO)
 
 
-def get20randomSeeds():
-    return [np.random.randint(0, 1e9) for _ in range(20)]
+def get_random_seeds(num_seeds=20, seed_range=1e9):
+    """Generate a list of random seeds."""
+    return [np.random.randint(0, seed_range) for _ in range(num_seeds)]
 
 
 def select_samples_per_class(x, y, n_samples):
+    """Select a fixed number of samples per class."""
     unique_classes = np.unique(y)
-    new_x, new_y = [], []
+    selected_x, selected_y = [], []
 
     for cls in unique_classes:
         cls_indices = np.where(y == cls)[0]
@@ -27,52 +29,41 @@ def select_samples_per_class(x, y, n_samples):
             if len(cls_indices) <= n_samples
             else np.random.choice(cls_indices, n_samples, replace=False)
         )
-        new_x.append(x[selected_indices])
-        new_y.append(y[selected_indices])
+        selected_x.append(x[selected_indices])
+        selected_y.append(y[selected_indices])
 
-    return np.concatenate(new_x), np.concatenate(new_y)
+    return np.concatenate(selected_x), np.concatenate(selected_y)
 
 
-def main(seeds):
-    torch.cuda.empty_cache()
+def load_data():
+    """Load training and testing data."""
+    x_train = np.load("stage_dylan/visulisation/npy/x_train.npy")
+    y_train = np.load("stage_dylan/visulisation/npy/y_train.npy")
+    x_test = np.load("stage_dylan/visulisation/npy/x_test.npy")
+    y_test = np.load("stage_dylan/visulisation/npy/y_test.npy")
 
-    # Load your numpy arrays
-    x_train = np.load(
-        "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/x_train.npy"
-    )
-    y_train = np.load(
-        "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/y_train.npy"
-    )
-    x_test = np.load(
-        "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/x_test.npy"
-    )
-    y_test = np.load(
-        "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/y_test.npy"
-    )
-
-    # Print shapes of the data arrays
     print(f"x_train shape: {x_train.shape}")
     print(f"y_train shape: {y_train.shape}")
     print(f"x_test shape: {x_test.shape}")
     print(f"y_test shape: {y_test.shape}")
 
-    n_values = [5,10,50,100]
+    return x_train, y_train, x_test, y_test
 
-    # Create the SimCLR model
-    model = SimCLRModule()
-    torch.cuda.empty_cache()
-    model.load_state_dict(torch.load("simCLR.pth"))
-    model.inference = True
+
+def evaluate_model(model, x_train, y_train, x_test, y_test, n_values, seeds):
+    """Evaluate the model with different number of samples per class."""
     accuracies = []
-    acuracies_bef = []
-    acuracies_majority = []
+    accuracies_before = []
+    accuracies_majority = []
+
     for n in n_values:
         for seed in seeds:
             torch.manual_seed(seed)
             pl.seed_everything(seed)
+
             x_train_selected, y_train_selected = select_samples_per_class(
                 x_train, y_train, n
-            )   
+            )
 
             train_dataset = NPYDataset(x_train_selected, y_train_selected)
             train_loader = DataLoader(
@@ -80,61 +71,112 @@ def main(seeds):
             )
             test_dataset = NPYDataset(x_test, y_test)
             test_loader = DataLoader(
-                test_dataset, batch_size=512, shuffle=False, num_workers=19, drop_last=False
+                test_dataset,
+                batch_size=512,
+                shuffle=False,
+                num_workers=19,
+                drop_last=False,
             )
 
-            H_train = []
-            H_test = []
-            hbef_train = []
-            hbef_test = []
-            with torch.no_grad():
-                for x, y in train_loader:
-                    #print(f"shape of x_train: {x.shape}")
-                    H_train.append(model.get_h(x).cpu().numpy())
-                    hbef_train.append(x.cpu().numpy())
-                for x, y in test_loader:
-                    #print(f"shape of x_test: {x.shape}")
-                    H_test.append(model.get_h(x).cpu().numpy())
-                    hbef_test.append(x.cpu().numpy())
-            H_train = np.concatenate(H_train)
-            H_test = np.concatenate(H_test, axis=0)
-            hbef_train = np.concatenate(hbef_train)
-            hbef_test = np.concatenate(hbef_test)
-            print(f"shape of H_test: {H_test.shape}")
-            print(f"shape of hbef_test: {hbef_test.shape}")
-            print(H_train.shape, H_test.shape, hbef_train.shape, hbef_test.shape)
-            # Train a logistic regression model on top of the representations
-            clf = LogisticRegression(max_iter=1000)
-            clf.fit(H_train, y_train_selected)
-            y_pred = clf.predict(H_test)
-            acc = accuracy_score(y_test, y_pred)
-            accuracies.append(acc)
-            # Train a logistic regression model on top of the representations befoore the model
-            clf = LogisticRegression(max_iter=1000)
-            clf.fit(hbef_train.reshape(hbef_train.shape[0], -1), y_train_selected)
-            y_pred = clf.predict(hbef_test.reshape(hbef_test.shape[0], -1))
-            acc = accuracy_score(y_test, y_pred)
-            acuracies_bef.append(acc)
-            # Train a logistic regression model on top of the representations and majority vote
-            clf = LogisticRegression(max_iter=1000)
-            clf.fit(H_train, y_train_selected)
-            y_pred = clf.predict(H_test)
-            y_pred = y_pred.reshape(-1, 1)
-            y_pred_majority_vote = np.apply_along_axis(
-                lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred
+            H_train, H_test, hbef_train, hbef_test = extract_features(
+                model, train_loader, test_loader
             )
-            acc = accuracy_score(y_test, y_pred_majority_vote)
-            acuracies_majority.append(acc)
-        logging.info(f" Before Accuracy for n = {n}  is {sum(acuracies_bef)/len(acuracies_bef):.4f}")
-        logging.info(f"Accuracy for n = {n}  is {sum(accuracies)/len(accuracies):.4f}")
-        logging.info(f"Majority vote Accuracy for n = {n}  is {sum(acuracies_majority)/len(acuracies_majority):.4f}")
-        accuracies = []
-        acuracies_bef = []
+
+            accuracies.append(
+                train_and_evaluate_logistic_regression(
+                    H_train, y_train_selected, H_test, y_test
+                )
+            )
+            accuracies_before.append(
+                train_and_evaluate_logistic_regression(
+                    hbef_train, y_train_selected, hbef_test, y_test, reshape=True
+                )
+            )
+            accuracies_majority.append(
+                train_and_evaluate_logistic_regression_with_majority_vote(
+                    H_train, y_train_selected, H_test, y_test
+                )
+            )
+
+        log_results(n, accuracies, accuracies_before, accuracies_majority)
+        accuracies.clear()
+        accuracies_before.clear()
+        accuracies_majority.clear()
+
+
+def extract_features(model, train_loader, test_loader):
+    """Extract features using the SimCLR model."""
+    H_train, H_test, hbef_train, hbef_test = [], [], [], []
+
+    with torch.no_grad():
+        for x, _ in train_loader:
+            H_train.append(model.get_h(x).cpu().numpy())
+            hbef_train.append(x.cpu().numpy())
+        for x, _ in test_loader:
+            H_test.append(model.get_h(x).cpu().numpy())
+            hbef_test.append(x.cpu().numpy())
+
+    return (
+        np.concatenate(H_train),
+        np.concatenate(H_test),
+        np.concatenate(hbef_train),
+        np.concatenate(hbef_test),
+    )
+
+
+def train_and_evaluate_logistic_regression(
+    H_train, y_train, H_test, y_test, reshape=False
+):
+    """Train and evaluate a logistic regression model."""
+    clf = LogisticRegression(max_iter=1000)
+    if reshape:
+        clf.fit(H_train.reshape(H_train.shape[0], -1), y_train)
+        y_pred = clf.predict(H_test.reshape(H_test.shape[0], -1))
+    else:
+        clf.fit(H_train, y_train)
+        y_pred = clf.predict(H_test)
+    return accuracy_score(y_test, y_pred)
+
+
+def train_and_evaluate_logistic_regression_with_majority_vote(
+    H_train, y_train, H_test, y_test
+):
+    """Train and evaluate logistic regression with majority vote."""
+    clf = LogisticRegression(max_iter=1000)
+    clf.fit(H_train, y_train)
+    y_pred = clf.predict(H_test).reshape(-1, 1)
+    y_pred_majority_vote = np.apply_along_axis(
+        lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred
+    )
+    return accuracy_score(y_test, y_pred_majority_vote)
+
+
+def log_results(n, accuracies, accuracies_before, accuracies_majority):
+    """Log the evaluation results."""
+    logging.info(f"Before Accuracy for n={n}: {np.mean(accuracies_before):.4f}")
+    logging.info(f"Accuracy for n={n}: {np.mean(accuracies):.4f}")
+    logging.info(
+        f"Majority Vote Accuracy for n={n}: {np.mean(accuracies_majority):.4f}"
+    )
+
+
+def main():
+    seeds = get_random_seeds()
+    x_train, y_train, x_test, y_test = load_data()
+
+    # Create and load the SimCLR model
+    model = SimCLRModule()
+    model.load_state_dict(torch.load("simCLR.pth"))
+    model.inference = True
+
+    n_values = [5, 10, 50, 100]
+    evaluate_model(model, x_train, y_train, x_test, y_test, n_values, seeds)
 
 
 if __name__ == "__main__":
-    seeds = get20randomSeeds()
-    main(seeds)
+    main()
     print("Done")
     print("Check the output.log file for the results.")
+
+
 
