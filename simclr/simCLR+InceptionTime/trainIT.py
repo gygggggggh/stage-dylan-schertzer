@@ -1,24 +1,23 @@
-# train.py
-
 import numpy as np
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from dataset import NPYDataset
-from training_module import SimCLRModule
+from module_simCLR_IT import SimCLRModuleIT
 import torch
+from typing import Dict, Any
 
-
-CONFIG = {
+CONFIG: Dict[str, Any] = {
     "x_train_path": "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/x_train.npy",
     "y_train_path": "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/y_train.npy",
     "x_test_path": "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/x_test.npy",
     "y_test_path": "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/y_test.npy",
-    "model_save_path": "simCLR.pth",
+    "model_save_path": "simclr/simCLR+InceptionTime/simCLR+IT.pth",
     "batch_size": 512,
     "num_workers": 19,
     "max_epochs": 100,
 }
-def main(config):
+
+def main(config: Dict[str, Any]) -> None:
     """
     Main training function.
     """
@@ -29,7 +28,7 @@ def main(config):
     y_test = np.load(config["y_test_path"])
 
     # Create the SimCLR model
-    model = SimCLRModule()
+    model = SimCLRModuleIT()
     torch.cuda.empty_cache()
 
     # Create the data loaders

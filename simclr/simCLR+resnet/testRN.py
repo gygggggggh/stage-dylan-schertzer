@@ -5,19 +5,18 @@ import pytorch_lightning as pl
 from cuml.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from torch.utils.data import DataLoader
-from training_module import SimCLRModule
+from module_simCLR_RN import SimCLRModuleRN
 from dataset import NPYDataset
 
-# Configure logging
 logging.basicConfig(filename="output.log", level=logging.INFO)
 
 
-def get_random_seeds(num_seeds=20, seed_range=1e9):
+def get_random_seeds(num_seeds: int = 20, seed_range: int = 1e9) -> list:
     """Generate a list of random seeds."""
     return [np.random.randint(0, seed_range) for _ in range(num_seeds)]
 
 
-def select_samples_per_class(x, y, n_samples):
+def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> tuple:
     """Select a fixed number of samples per class."""
     unique_classes = np.unique(y)
     selected_x, selected_y = [], []
@@ -35,7 +34,7 @@ def select_samples_per_class(x, y, n_samples):
     return np.concatenate(selected_x), np.concatenate(selected_y)
 
 
-def load_data():
+def load_data() -> tuple:
     """Load training and testing data."""
     x_train = np.load("stage_dylan/visulisation/npy/x_train.npy")
     y_train = np.load("stage_dylan/visulisation/npy/y_train.npy")
@@ -49,8 +48,9 @@ def load_data():
 
     return x_train, y_train, x_test, y_test
 
+load_data()
 
-def evaluate_model(model, x_train, y_train, x_test, y_test, n_values, seeds):
+def evaluate_model(model: SimCLRModuleRN, x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y_test: np.ndarray, n_values: list, seeds: list) -> None:
     """Evaluate the model with different number of samples per class."""
     accuracies = []
     accuracies_before = []
@@ -104,7 +104,7 @@ def evaluate_model(model, x_train, y_train, x_test, y_test, n_values, seeds):
         accuracies_majority.clear()
 
 
-def extract_features(model, train_loader, test_loader):
+def extract_features(model: SimCLRModuleRN, train_loader: DataLoader, test_loader: DataLoader) -> tuple:
     """Extract features using the SimCLR model."""
     H_train, H_test, hbef_train, hbef_test = [], [], [], []
 
@@ -125,8 +125,8 @@ def extract_features(model, train_loader, test_loader):
 
 
 def train_and_evaluate_logistic_regression(
-    H_train, y_train, H_test, y_test, reshape=False
-):
+    H_train: np.ndarray, y_train: np.ndarray, H_test: np.ndarray, y_test: np.ndarray, reshape: bool = False
+) -> float:
     """Train and evaluate a logistic regression model."""
     clf = LogisticRegression(max_iter=1000)
     if reshape:
@@ -139,8 +139,8 @@ def train_and_evaluate_logistic_regression(
 
 
 def train_and_evaluate_logistic_regression_with_majority_vote(
-    H_train, y_train, H_test, y_test
-):
+    H_train: np.ndarray, y_train: np.ndarray, H_test: np.ndarray, y_test: np.ndarray
+) -> float:
     """Train and evaluate logistic regression with majority vote."""
     clf = LogisticRegression(max_iter=1000)
     clf.fit(H_train, y_train)
@@ -151,7 +151,7 @@ def train_and_evaluate_logistic_regression_with_majority_vote(
     return accuracy_score(y_test, y_pred_majority_vote)
 
 
-def log_results(n, accuracies, accuracies_before, accuracies_majority):
+def log_results(n: int, accuracies: list, accuracies_before: list, accuracies_majority: list) -> None:
     """Log the evaluation results."""
     logging.info(f"Before Accuracy for n={n}: {np.mean(accuracies_before):.4f}")
     logging.info(f"Accuracy for n={n}: {np.mean(accuracies):.4f}")
@@ -160,13 +160,13 @@ def log_results(n, accuracies, accuracies_before, accuracies_majority):
     )
 
 
-def main():
+def main() -> None:
     seeds = get_random_seeds()
     x_train, y_train, x_test, y_test = load_data()
 
     # Create and load the SimCLR model
-    model = SimCLRModule()
-    model.load_state_dict(torch.load("simCLR.pth"))
+    model = SimCLRModuleRN()
+    model.load_state_dict(torch.load("simclr/simCLR+resnet/simCLR+RN.pth"))
     model.inference = True
 
     n_values = [5, 10, 50, 100]
