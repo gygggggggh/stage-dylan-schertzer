@@ -1,58 +1,42 @@
-import numpy as np
-
-# Load your numpy arrays
-x_train = np.load("stage_dylan/visulisation/npy/x_train.npy")
-y_train = np.load("stage_dylan/visulisation/npy/y_train.npy")
-x_test = np.load("stage_dylan/visulisation/npy/x_test.npy")
-y_test = np.load("stage_dylan/visulisation/npy/y_test.npy")
-
-# Print shapes of the data arrays
-print(f"x_train shape: {x_train[0].shape}")
-print(f"y_train shape: {y_train.shape}")
-print(f"x_test shape: {x_test.shape}")
-print(f"y_test shape: {y_test.shape}")
-
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# Step 1: Prepare the data
-data = {
-    'Method': ['Logistic Regression', 'MiniRocket', 'InceptionTime', 'TimeMAE', 'SimCLR + GaPP + AvgP'],
-    '5': [42, 47, 56, 53, 62],
-    '10': [49, 58, 65, 61, 70],
-    '50': [68, 75, 77, 75, 80],
-    '100': [74, 79, 80, 79, 82]
-}
+def parse_log(filename):
+    data = []
+    majority_data = []
+    with open(filename, 'r') as file:
+        for line in file:
+            if "Accuracy for n=" in line:
+                n = int(line.split('=')[1].split(':')[0])
+                acc = float(line.split('=')[1].split(':')[1].strip())
+                data.append((filename, n, acc))
+            if "Majority Vote Accuracy for n=" in line:
+                n_majority = int(line.split('=')[1].split(':')[0])
+                acc_majority = float(line.split('=')[1].split(':')[1].strip())
+                majority_data.append((filename, n_majority, acc_majority))
+    return data, majority_data
 
-df = pd.DataFrame(data)
-df.set_index('Method', inplace=True)
+# Parse the log files
+data_LR, majority_data_LR = parse_log('testLR.log')
+data_RN, majority_data_RN = parse_log('testRN.log')
+data_IT, majority_data_IT = parse_log('testIT.log')
 
-# Step 2: Create the table using seaborn and matplotlib
-fig, ax = plt.subplots(figsize=(12, 6))  # Set figure size
 
-# Hide axes
-ax.axis('tight')
-ax.axis('off')
 
-# Create the table
-table = ax.table(cellText=df.values,
-                 colLabels=df.columns,
-                 rowLabels=df.index,
-                 cellLoc='center',
-                 loc='center',
-                 colColours=sns.color_palette("coolwarm", len(df.columns)))
+# Combine the data
+data = data_LR + data_RN + data_IT
+majority_data = majority_data_LR + majority_data_RN + majority_data_IT
 
-# Style the table
-table.auto_set_font_size(False)
-table.set_fontsize(12)
-table.scale(1.2, 1.2)
+# Create a DataFrame
+df = pd.DataFrame(data, columns=['Model', 'n', 'Accuracy'])
+df_majority = pd.DataFrame(majority_data, columns=['Model', 'n', 'Accuracy'])
 
-# Set a title
-plt.title('Performance of Different Methods', fontsize=16)
+#create a table
+table = pd.pivot_table(df, values='Accuracy', index='n', columns='Model')
+table_majority = pd.pivot_table(df_majority, values='Accuracy', index='n', columns='Model')
 
-# Save the table as an image (optional)
-plt.savefig('table.png', bbox_inches='tight')
+# Print the table
 
-# Show the table
-plt.show()
+print(table)
+print(table_majority)

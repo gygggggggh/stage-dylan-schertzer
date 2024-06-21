@@ -5,10 +5,11 @@ import pytorch_lightning as pl
 from cuml.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from torch.utils.data import DataLoader
-from module_simCLR_IT import SimCLRModule
+from module_simCLR_IT import SimCLRModuleIT
 from dataset import NPYDataset
 
-logging.basicConfig(filename="output.log", level=logging.INFO)
+logging.basicConfig(filename="testIT.log", level=logging.INFO)
+logging.info("simCLR+InceptionTime")
 
 
 def get_random_seeds(num_seeds: int = 20, seed_range: int = 1e9) -> list:
@@ -49,10 +50,17 @@ def load_data() -> tuple:
     return x_train, y_train, x_test, y_test
 
 
-def evaluate_model(model: SimCLRModule, x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y_test: np.ndarray, n_values: list, seeds: list) -> None:
+def evaluate_model(
+    model: SimCLRModuleIT,
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_test: np.ndarray,
+    y_test: np.ndarray,
+    n_values: list,
+    seeds: list,
+) -> None:
     """Evaluate the model with different number of samples per class."""
     accuracies = []
-    accuracies_before = []
     accuracies_majority = []
 
     for n in n_values:
@@ -77,7 +85,7 @@ def evaluate_model(model: SimCLRModule, x_train: np.ndarray, y_train: np.ndarray
                 drop_last=False,
             )
 
-            H_train, H_test, hbef_train, hbef_test = extract_features(
+            H_train, H_test = extract_features(
                 model, train_loader, test_loader
             )
 
@@ -86,45 +94,42 @@ def evaluate_model(model: SimCLRModule, x_train: np.ndarray, y_train: np.ndarray
                     H_train, y_train_selected, H_test, y_test
                 )
             )
-            accuracies_before.append(
-                train_and_evaluate_logistic_regression(
-                    hbef_train, y_train_selected, hbef_test, y_test, reshape=True
-                )
-            )
+
             accuracies_majority.append(
                 train_and_evaluate_logistic_regression_with_majority_vote(
                     H_train, y_train_selected, H_test, y_test
                 )
             )
 
-        log_results(n, accuracies, accuracies_before, accuracies_majority)
+        log_results(n, accuracies, accuracies_majority)
         accuracies.clear()
-        accuracies_before.clear()
         accuracies_majority.clear()
 
 
-def extract_features(model: SimCLRModule, train_loader: DataLoader, test_loader: DataLoader) -> tuple:
+def extract_features(
+    model: SimCLRModuleIT, train_loader: DataLoader, test_loader: DataLoader
+) -> tuple:
     """Extract features using the SimCLR model."""
-    H_train, H_test, hbef_train, hbef_test = [], [], [], []
+    H_train, H_test = [], []
 
     with torch.no_grad():
         for x, _ in train_loader:
             H_train.append(model.get_h(x).cpu().numpy())
-            hbef_train.append(x.cpu().numpy())
         for x, _ in test_loader:
             H_test.append(model.get_h(x).cpu().numpy())
-            hbef_test.append(x.cpu().numpy())
 
     return (
         np.concatenate(H_train),
         np.concatenate(H_test),
-        np.concatenate(hbef_train),
-        np.concatenate(hbef_test),
     )
 
 
 def train_and_evaluate_logistic_regression(
-    H_train: np.ndarray, y_train: np.ndarray, H_test: np.ndarray, y_test: np.ndarray, reshape: bool = False
+    H_train: np.ndarray,
+    y_train: np.ndarray,
+    H_test: np.ndarray,
+    y_test: np.ndarray,
+    reshape: bool = False,
 ) -> float:
     """Train and evaluate a logistic regression model."""
     clf = LogisticRegression(max_iter=1000)
@@ -150,10 +155,11 @@ def train_and_evaluate_logistic_regression_with_majority_vote(
     return accuracy_score(y_test, y_pred_majority_vote)
 
 
-def log_results(n: int, accuracies: list, accuracies_before: list, accuracies_majority: list) -> None:
+def log_results(
+    n: int, accuracies: list, accuracies_majority: list
+) -> None:
     """Log the evaluation results."""
-    logging.info(f"Before Accuracy for n={n}: {np.mean(accuracies_before):.4f}")
-    logging.info(f"Accuracy for n={n}: {np.mean(accuracies):.4f}")
+    logging.info(f"The Accuracy for n={n}: {np.mean(accuracies):.4f}")
     logging.info(
         f"Majority Vote Accuracy for n={n}: {np.mean(accuracies_majority):.4f}"
     )
@@ -164,8 +170,8 @@ def main() -> None:
     x_train, y_train, x_test, y_test = load_data()
 
     # Create and load the SimCLR model
-    model = SimCLRModule()
-    model.load_state_dict(torch.load("simCLR.pth"))
+    model = SimCLRModuleIT()
+    model.load_state_dict(torch.load("simclr/simCLR+InceptionTime/simCLR+IT.pth"))
     model.inference = True
 
     n_values = [5, 10, 50, 100]
@@ -176,6 +182,3 @@ if __name__ == "__main__":
     main()
     print("Done")
     print("Check the output.log file for the results.")
-
-
-

@@ -18,17 +18,8 @@ class Flatten(nn.Module):
         return x.view(-1, self.output_dim)
 
 
-class Reshape(nn.Module):
-    def __init__(self, out_shape: tuple):
-        super(Reshape, self).__init__()
-        self.out_shape = np.transpose(out_shape)
-
-    def forward(self, x: Tensor) -> Tensor:
-        return x
-
-
 InceptionTime = nn.Sequential(
-    Reshape(out_shape=(60, 60)),  # bizarre mais ca marche je crois
+
     InceptionBlock(
         in_channels=12,
         n_filters=32,
@@ -39,14 +30,14 @@ InceptionTime = nn.Sequential(
     ),
     InceptionBlock(
         in_channels=32 * 4,
-        n_filters=32,
+        n_filters=128,
         kernel_sizes=[5, 11, 23],
         bottleneck_channels=32,
         use_residual=True,
         activation=nn.ReLU(),
     ),
     nn.AdaptiveAvgPool1d(output_size=1),
-    Flatten(out_features=32 * 4 * 1),
+    Flatten(out_features=128 * 4 * 1),
 
 )
 
@@ -55,7 +46,7 @@ class SimCLRModuleIT(pl.LightningModule):
     def __init__(self):
         super().__init__()
         self.backbone = InceptionTime
-        hidden_dim = 128
+        hidden_dim = 512
         self.projection_head = SimCLRProjectionHead(hidden_dim, hidden_dim, 128)
 
         self.criterion = NTXentLoss()
@@ -76,7 +67,7 @@ class SimCLRModuleIT(pl.LightningModule):
 
     def configure_optimizers(self):
         optim = torch.optim.SGD(
-            self.parameters(), lr=6e-2, momentum=0.9, weight_decay=5e-4
+            self.parameters(), lr=0.02, momentum=0.9, weight_decay=5e-4
         )
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, 2)
         return [optim], [scheduler]

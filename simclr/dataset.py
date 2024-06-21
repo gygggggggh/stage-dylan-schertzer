@@ -1,14 +1,14 @@
 # %%
 import torch
 from torch.utils.data import Dataset
-
+import numpy as np
 
 class NPYDataset(Dataset):
-    def __init__(self, data, targets):
+    def __init__(self, data: np.ndarray, targets: np.ndarray) -> None:
         self.data = torch.from_numpy(data).float()
         self.targets = torch.from_numpy(targets).float()
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         rand1 = torch.randint(0, self.data.shape[1], (1,)).item()
         rand2 = torch.randint(0, self.data.shape[1], (1,)).item()
         if rand1 == rand2:
@@ -17,7 +17,7 @@ class NPYDataset(Dataset):
         return self.data[index, rand1], self.data[index, rand2]
 
     @staticmethod
-    def getall(x_test, y_test):
+    def getall(x_test: np.ndarray, y_test: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
         x_test = x_test.reshape(-1, 60, 12)
         return torch.from_numpy(x_test).float(), torch.from_numpy(y_test).float()
 

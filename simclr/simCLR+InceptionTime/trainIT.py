@@ -1,7 +1,7 @@
 import numpy as np
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-from dataset import NPYDataset
+from dataset import NPYDataset,NPYDatasetAll
 from module_simCLR_IT import SimCLRModuleIT
 import torch
 from typing import Dict, Any
@@ -12,7 +12,7 @@ CONFIG: Dict[str, Any] = {
     "x_test_path": "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/x_test.npy",
     "y_test_path": "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/y_test.npy",
     "model_save_path": "simclr/simCLR+InceptionTime/simCLR+IT.pth",
-    "batch_size": 512,
+    "batch_size": 256,
     "num_workers": 19,
     "max_epochs": 100,
 }
@@ -34,7 +34,7 @@ def main(config: Dict[str, Any]) -> None:
     # Create the data loaders
     train_dataset = NPYDataset(x_train, y_train)
     train_loader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=config["num_workers"])
-    test_dataset = NPYDataset(x_test, y_test)
+    test_dataset = NPYDatasetAll(x_test, y_test)
     test_loader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"], drop_last=False)
 
     # Train the model
