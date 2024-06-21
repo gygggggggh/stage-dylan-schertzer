@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 
 def train_logistic_regression(x_train, y_train, x_test, y_test):
-    model = LogisticRegression(max_iter=1000)
+    model = LogisticRegression(max_iter=3000)
     model.fit(x_train.reshape(x_train.shape[0], -1), y_train)
     return model
 

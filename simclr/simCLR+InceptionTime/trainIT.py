@@ -7,8 +7,8 @@ import torch
 from typing import Dict, Any
 
 CONFIG: Dict[str, Any] = {
-    "x_train_path": "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/x_train.npy",
-    "y_train_path": "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/y_train.npy",
+    "x_train_path": "simclr/x_train_40k.npy",
+    "y_train_path": "simclr/y_train_40k.npy",
     "x_test_path": "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/x_test.npy",
     "y_test_path": "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/y_test.npy",
     "model_save_path": "simclr/simCLR+InceptionTime/simCLR+IT.pth",

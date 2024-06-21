@@ -74,12 +74,12 @@ def evaluate_model(
 
             train_dataset = NPYDataset(x_train_selected, y_train_selected)
             train_loader = DataLoader(
-                train_dataset, batch_size=512, shuffle=False, num_workers=19
+                train_dataset, batch_size=256, shuffle=False, num_workers=19
             )
             test_dataset = NPYDataset(x_test, y_test)
             test_loader = DataLoader(
                 test_dataset,
-                batch_size=512,
+                batch_size=256,
                 shuffle=False,
                 num_workers=19,
                 drop_last=False,

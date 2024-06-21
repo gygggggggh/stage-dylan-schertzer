@@ -16,7 +16,7 @@ class SimCLRModuleRN(pl.LightningModule):
 
         # create a ResNet backbone and remove the classification head
         resnet = torchvision.models.resnet18()
-        resnet.conv1 = nn.Conv2d(12, 64, kernel_size=7, stride=2, padding=3, bias=False)  
+        resnet.conv1 = nn.Conv2d(12,64, kernel_size=7, stride=2, padding=3, bias=False)  
         self.backbone = nn.Sequential(*list(resnet.children())[:-1])
 
         hidden_dim = resnet.fc.in_features
@@ -51,7 +51,13 @@ class SimCLRModuleRN(pl.LightningModule):
         pass
 
     def get_h(self, x: torch.Tensor) -> torch.Tensor:
-        x = x.unsqueeze(1)
-        x = x.transpose(1, 3)
+        x = x.squeeze()
+        if x.dim() == 4:
+            if x.size(1) != 12:
+                x = x.permute(0, 3, 1, 2)  # Change the shape to [batch, channels, height, width]
+        elif x.dim() == 3:
+            x = x.unsqueeze(1) 
+            x = x.permute(0, 3, 1, 2)  
+        
         h = self.backbone(x)
         return h
