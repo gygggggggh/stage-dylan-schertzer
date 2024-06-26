@@ -6,17 +6,17 @@ from cuml.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from torch.utils.data import DataLoader
 from module_simCLR_RN import SimCLRModuleRN
-from dataset import NPYDataset, NPYDatasetAll
+from dataset import NPYDataset , NPYDatasetAll
 
-logging.basicConfig(filename="testRN.log", level=logging.INFO)
-logging.info("simCLR+ResNet")
+logging.basicConfig(filename="output.log", level=logging.INFO)
 
-def get_random_seeds(num_seeds: int = 20, seed_range: int = 1e9) -> list[int]:
+
+def get_random_seeds(num_seeds: int = 20, seed_range: int = 1e9) -> list:
     """Generate a list of random seeds."""
     return [np.random.randint(0, seed_range) for _ in range(num_seeds)]
 
 
-def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> tuple[np.ndarray, np.ndarray]:
+def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> tuple:
     """Select a fixed number of samples per class."""
     unique_classes = np.unique(y)
     selected_x, selected_y = [], []
@@ -49,10 +49,9 @@ def load_data() -> tuple:
     return x_train, y_train, x_test, y_test
 
 
-def evaluate_model(model: SimCLRModuleRN, x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y_test: np.ndarray, n_values: list[int], seeds: list) -> None:
+def evaluate_model(model: SimCLRModuleRN, x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y_test: np.ndarray, n_values: list, seeds: list) -> None:
     """Evaluate the model with different number of samples per class."""
     accuracies = []
-    accuracies_before = []
     accuracies_majority = []
 
     for n in n_values:
@@ -66,12 +65,12 @@ def evaluate_model(model: SimCLRModuleRN, x_train: np.ndarray, y_train: np.ndarr
 
             train_dataset = NPYDataset(x_train_selected, y_train_selected)
             train_loader = DataLoader(
-                train_dataset, batch_size=256, shuffle=False, num_workers=19
+                train_dataset, batch_size=512, shuffle=False, num_workers=19
             )
             test_dataset = NPYDatasetAll(x_test, y_test)
             test_loader = DataLoader(
                 test_dataset,
-                batch_size=256,
+                batch_size=512,
                 shuffle=False,
                 num_workers=19,
                 drop_last=False,
@@ -99,7 +98,7 @@ def evaluate_model(model: SimCLRModuleRN, x_train: np.ndarray, y_train: np.ndarr
 
 def extract_features(model: SimCLRModuleRN, train_loader: DataLoader, test_loader: DataLoader) -> tuple:
     """Extract features using the SimCLR model."""
-    H_train, H_test, = [], []
+    H_train, H_test = [], []
 
     with torch.no_grad():
         for x, _ in train_loader:
@@ -142,7 +141,7 @@ def train_and_evaluate_logistic_regression_with_majority_vote(
 
 def log_results(n: int, accuracies: list, accuracies_majority: list) -> None:
     """Log the evaluation results."""
-    logging.info(f"The Accuracy for n={n}: {np.mean(accuracies):.4f}")
+    logging.info(f"Accuracy for n={n}: {np.mean(accuracies):.4f}")
     logging.info(
         f"Majority Vote Accuracy for n={n}: {np.mean(accuracies_majority):.4f}"
     )
@@ -165,6 +164,3 @@ if __name__ == "__main__":
     main()
     print("Done")
     print("Check the output.log file for the results.")
-
-
-

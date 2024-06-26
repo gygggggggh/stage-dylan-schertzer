@@ -26,11 +26,14 @@ def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> tu
 
     return np.concatenate(selected_x), np.concatenate(selected_y)
 
+
 def load_data() -> tuple:
-    x_train = np.load("stage_dylan/visulisation/npy/x_train.npy")
-    y_train = np.load("stage_dylan/visulisation/npy/y_train.npy")
+    x_train = np.load("simclr/x_train_40k.npy")
+    y_train = np.load("simclr/y_train_40k.npy")
     x_test = np.load("stage_dylan/visulisation/npy/x_test.npy")
     y_test = np.load("stage_dylan/visulisation/npy/y_test.npy")
+    x_test = np.load("stage_dylan/visulisation/npy/x_test.npy").astype(np.float32)
+    y_test = np.load("stage_dylan/visulisation/npy/y_test.npy").astype(np.float32)
 
     print(f"x_train shape: {x_train.shape}")
     print(f"y_train shape: {y_train.shape}")
@@ -38,6 +41,7 @@ def load_data() -> tuple:
     print(f"y_test shape: {y_test.shape}")
 
     return x_train, y_train, x_test, y_test
+
 
 def fit_and_evaluate_model(x_train, y_train, x_test, y_test, model_path, majority=False):
     model = LogisticRegression()
@@ -71,7 +75,6 @@ def evaluate_model(x_train, y_train, x_test, y_test, n_values, seeds):
             x_train_selected, y_train_selected = select_samples_per_class(x_train, y_train, n)
             x_train_reshaped = x_train_selected.reshape(x_train_selected.shape[0], -1)
             x_test_reshaped = x_test.reshape(x_test.shape[0], -1)
-            y_test_majority = y_test[::5]
             y_train_repeated = np.repeat(y_train_selected, 1)
             y_test_repeated = np.repeat(y_test, 1)
 

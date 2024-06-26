@@ -9,3 +9,4 @@ data/
 *.pth
 *.tfevents
 *.yaml
+*pkl

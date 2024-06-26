@@ -8,6 +8,7 @@ def main():
         "simclr/simCLR+resnet/testRN.py",
         "simclr/LR/trainLR.py",
         "simclr/LR/testLR.py",
+        "simclr/question.py",
     ]
 
     # Run each script

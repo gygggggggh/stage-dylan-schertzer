@@ -6,7 +6,7 @@ from cuml.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from torch.utils.data import DataLoader
 from module_simCLR_IT import SimCLRModuleIT
-from dataset import NPYDataset
+from dataset import NPYDataset, NPYDatasetAll
 
 logging.basicConfig(filename="testIT.log", level=logging.INFO)
 logging.info("simCLR+InceptionTime")
@@ -37,8 +37,8 @@ def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> tu
 
 def load_data() -> tuple:
     """Load training and testing data."""
-    x_train = np.load("stage_dylan/visulisation/npy/x_train.npy")
-    y_train = np.load("stage_dylan/visulisation/npy/y_train.npy")
+    x_train = np.load("simclr/x_train_40k.npy")
+    y_train = np.load("simclr/y_train_40k.npy")
     x_test = np.load("stage_dylan/visulisation/npy/x_test.npy")
     y_test = np.load("stage_dylan/visulisation/npy/y_test.npy")
 
@@ -76,7 +76,7 @@ def evaluate_model(
             train_loader = DataLoader(
                 train_dataset, batch_size=256, shuffle=False, num_workers=19
             )
-            test_dataset = NPYDataset(x_test, y_test)
+            test_dataset = NPYDatasetAll(x_test, y_test)
             test_loader = DataLoader(
                 test_dataset,
                 batch_size=256,
