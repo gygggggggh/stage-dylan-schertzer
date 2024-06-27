@@ -2,15 +2,39 @@ import numpy as np
 import joblib
 from cuml.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 import logging
+from typing import List, Tuple
+from pathlib import Path
 
-logging.basicConfig(filename="testLR.log", level=logging.INFO)
-logging.info("Logistic Regression")
+# Configure logging
+logging.basicConfig(
+    filename="testLR.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
-def get_random_seeds(num_seeds: int = 20, seed_range: int = 1e9) -> list:
+# Configuration
+CONFIG = {
+    "x_train_path": "simclr/x_train_40k.npy",
+    "y_train_path": "simclr/y_train_40k.npy",
+    "x_test_path": "stage_dylan/visulisation/npy/x_test.npy",
+    "y_test_path": "stage_dylan/visulisation/npy/y_test.npy",
+    "model_path": "simclr/LR/LR_model.pkl",
+    "n_values": [5, 10, 50, 100],
+    "num_seeds": 20,
+    "validation_split": 0.2,
+}
+
+
+def get_random_seeds(num_seeds: int = 20, seed_range: int = int(1e9)) -> List[int]:
     return [np.random.randint(0, seed_range) for _ in range(num_seeds)]
 
-def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> tuple:
+
+def select_samples_per_class(
+    x: np.ndarray, y: np.ndarray, n_samples: int
+) -> Tuple[np.ndarray, np.ndarray]:
     unique_classes = np.unique(y)
     selected_x, selected_y = [], []
 
@@ -27,69 +51,109 @@ def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> tu
     return np.concatenate(selected_x), np.concatenate(selected_y)
 
 
-def load_data() -> tuple:
-    x_train = np.load("simclr/x_train_40k.npy")
-    y_train = np.load("simclr/y_train_40k.npy")
-    x_test = np.load("stage_dylan/visulisation/npy/x_test.npy")
-    y_test = np.load("stage_dylan/visulisation/npy/y_test.npy")
-    x_test = np.load("stage_dylan/visulisation/npy/x_test.npy").astype(np.float32)
-    y_test = np.load("stage_dylan/visulisation/npy/y_test.npy").astype(np.float32)
+def load_data(config: dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    try:
+        x_train = np.load(config["x_train_path"])
+        y_train = np.load(config["y_train_path"])
+        x_test = np.load(config["x_test_path"]).astype(np.float32)
+        y_test = np.load(config["y_test_path"]).astype(np.float32)
+    except FileNotFoundError as e:
+        logger.error(f"Error loading data: {e}")
+        raise
 
-    print(f"x_train shape: {x_train.shape}")
-    print(f"y_train shape: {y_train.shape}")
-    print(f"x_test shape: {x_test.shape}")
-    print(f"y_test shape: {y_test.shape}")
-
+    logger.info(
+        f"Data shapes: x_train {x_train.shape}, y_train {y_train.shape}, x_test {x_test.shape}, y_test {y_test.shape}"
+    )
     return x_train, y_train, x_test, y_test
 
 
-def fit_and_evaluate_model(x_train, y_train, x_test, y_test, model_path, majority=False):
-    model = LogisticRegression()
-    model.fit(x_train, y_train)
+def fit_and_evaluate_model(
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_test: np.ndarray,
+    y_test: np.ndarray,
+    model_path: str,
+    majority: bool = False,
+    validation_split: float = 0.2,
+) -> Tuple[float, float]:
+    x_train_split, x_val_split, y_train_split, y_val_split = train_test_split(
+        x_train, y_train, test_size=validation_split, random_state=42
+    )
+
+    model = LogisticRegression(max_iter=1000)
+    model.fit(x_train_split, y_train_split)
+    Path(model_path).parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, model_path)
 
+    y_val_pred = model.predict(x_val_split)
+    val_accuracy = accuracy_score(y_val_split, y_val_pred)
+    logger.info(f"Validation Accuracy: {val_accuracy:.4f}")
+
     if majority:
-        x_test_majority = x_test[::5].reshape(-1, x_test.shape[-1])
-        y_test_majority = y_test[::5]
-
+        x_test_majority = x_test.reshape(x_test.shape[0], -1)
         y_pred = model.predict(x_test_majority)
-
-        # Perform majority voting
-        y_pred_majority_vote = np.array([np.bincount(y_pred[i:i+5]).argmax() for i in range(0, len(y_pred), 5)])
-
-        # Adjust y_test_majority to match the shape of y_pred_majority_vote
-        y_test_majority_adjusted = y_test_majority[:len(y_pred_majority_vote)]
-
-        accuracy = accuracy_score(y_test_majority_adjusted, y_pred_majority_vote)
+        y_pred_majority_vote = np.apply_along_axis(
+            lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred.reshape(-1, 1)
+        )
+        accuracy = accuracy_score(y_test, y_pred_majority_vote)
     else:
         y_pred = model.predict(x_test.reshape(x_test.shape[0], -1))
         accuracy = accuracy_score(y_test, y_pred)
 
-    return accuracy
+    return accuracy, val_accuracy
 
-def evaluate_model(x_train, y_train, x_test, y_test, n_values, seeds):
+
+def evaluate_model(
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_test: np.ndarray,
+    y_test: np.ndarray,
+    n_values: List[int],
+    seeds: List[int],
+    config: dict,
+):
     for n in n_values:
-        accuracies = []
-        accuracies_majority = []
+        accuracies, accuracies_majority = [], []
         for seed in seeds:
-            x_train_selected, y_train_selected = select_samples_per_class(x_train, y_train, n)
+            np.random.seed(seed)
+            x_train_selected, y_train_selected = select_samples_per_class(
+                x_train, y_train, n
+            )
             x_train_reshaped = x_train_selected.reshape(x_train_selected.shape[0], -1)
             x_test_reshaped = x_test.reshape(x_test.shape[0], -1)
-            y_train_repeated = np.repeat(y_train_selected, 1)
-            y_test_repeated = np.repeat(y_test, 1)
 
-            accuracy = fit_and_evaluate_model(x_train_reshaped, y_train_selected, x_test_reshaped, y_test, 'simclr/LR/LR_model.pkl')
+            accuracy, _ = fit_and_evaluate_model(
+                x_train_reshaped,
+                y_train_selected,
+                x_test_reshaped,
+                y_test,
+                config["model_path"],
+            )
             accuracies.append(accuracy)
 
-            accuracy_majority = fit_and_evaluate_model(x_train_reshaped, y_train_repeated, x_test_reshaped, y_test_repeated, 'simclr/LR/LR_model.pkl', majority=True)
+            accuracy_majority, _ = fit_and_evaluate_model(
+                x_train_reshaped,
+                y_train_selected,
+                x_test_reshaped,
+                y_test,
+                config["model_path"],
+                majority=True,
+            )
             accuracies_majority.append(accuracy_majority)
 
-        logging.info(f"The Accuracy for n={n}: {np.mean(accuracies):.4f}")
-        logging.info(f"Majority Vote Accuracy for n={n}: {np.mean(accuracies_majority):.4f}")
+        logger.info(f"Accuracy for n={n}: {np.mean(accuracies):.4f}")
+        logger.info(
+            f"Majority Vote Accuracy for n={n}: {np.mean(accuracies_majority):.4f}"
+        )
+
+
+def main(config: dict):
+    logger.info("Starting Logistic Regression evaluation")
+    x_train, y_train, x_test, y_test = load_data(config)
+    seeds = get_random_seeds(config["num_seeds"])
+    evaluate_model(x_train, y_train, x_test, y_test, config["n_values"], seeds, config)
+    logger.info("Evaluation complete")
+
 
 if __name__ == "__main__":
-    x_train, y_train, x_test, y_test = load_data()
-    seeds = get_random_seeds()
-    n_values = [5, 10, 50, 100]
-    evaluate_model(x_train, y_train, x_test, y_test, n_values, seeds)
-    logging.info("Done")
+    main(CONFIG)

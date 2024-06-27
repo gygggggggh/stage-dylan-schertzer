@@ -1,4 +1,5 @@
 import logging
+from typing import List, Tuple
 import numpy as np
 import torch
 import pytorch_lightning as pl
@@ -6,161 +7,125 @@ from cuml.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from torch.utils.data import DataLoader
 from module_simCLR_RN import SimCLRModuleRN
-from dataset import NPYDataset , NPYDatasetAll
+from dataset import NPYDataset
+from tqdm import tqdm
 
-logging.basicConfig(filename="output.log", level=logging.INFO)
+# Configuration
+TRAIN_DATA_PATH = "simclr/x_train_40k.npy"
+TRAIN_LABELS_PATH = "simclr/y_train_40k.npy"
+TEST_DATA_PATH = "stage_dylan/visulisation/npy/x_test.npy"
+TEST_LABELS_PATH = "stage_dylan/visulisation/npy/y_test.npy"
+MODEL_PATH = "simclr/simCLR+resnet/simCLR+RN.pth"
+BATCH_SIZE = 512
+NUM_WORKERS = 10
+N_VALUES = [5, 10, 50, 100]
+NUM_SEEDS = 2
 
+# Setup logging
+logging.basicConfig(filename="testRN.log", level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def get_random_seeds(num_seeds: int = 20, seed_range: int = 1e9) -> list:
+def get_random_seeds(num_seeds: int = NUM_SEEDS, seed_range: int = int(1e9)) -> List[int]:
     """Generate a list of random seeds."""
     return [np.random.randint(0, seed_range) for _ in range(num_seeds)]
 
-
-def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> tuple:
+def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> Tuple[np.ndarray, np.ndarray]:
     """Select a fixed number of samples per class."""
     unique_classes = np.unique(y)
     selected_x, selected_y = [], []
 
     for cls in unique_classes:
         cls_indices = np.where(y == cls)[0]
-        selected_indices = (
-            cls_indices
-            if len(cls_indices) <= n_samples
-            else np.random.choice(cls_indices, n_samples, replace=False)
-        )
+        selected_indices = cls_indices if len(cls_indices) <= n_samples else np.random.choice(cls_indices, n_samples, replace=False)
         selected_x.append(x[selected_indices])
         selected_y.append(y[selected_indices])
 
     return np.concatenate(selected_x), np.concatenate(selected_y)
 
-
-def load_data() -> tuple:
+def load_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Load training and testing data."""
-    x_train = np.load("stage_dylan/visulisation/npy/x_train.npy")
-    y_train = np.load("stage_dylan/visulisation/npy/y_train.npy")
-    x_test = np.load("stage_dylan/visulisation/npy/x_test.npy")
-    y_test = np.load("stage_dylan/visulisation/npy/y_test.npy")
+    try:
+        x_train = np.load(TRAIN_DATA_PATH)
+        y_train = np.load(TRAIN_LABELS_PATH)
+        x_test = np.load(TEST_DATA_PATH)
+        y_test = np.load(TEST_LABELS_PATH)
+    except FileNotFoundError as e:
+        logger.error(f"Error loading data: {e}")
+        raise
 
-    print(f"x_train shape: {x_train.shape}")
-    print(f"y_train shape: {y_train.shape}")
-    print(f"x_test shape: {x_test.shape}")
-    print(f"y_test shape: {y_test.shape}")
-
+    logger.info(f"Data shapes: x_train {x_train.shape}, y_train {y_train.shape}, x_test {x_test.shape}, y_test {y_test.shape}")
     return x_train, y_train, x_test, y_test
 
-
-def evaluate_model(model: SimCLRModuleRN, x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y_test: np.ndarray, n_values: list, seeds: list) -> None:
-    """Evaluate the model with different number of samples per class."""
-    accuracies = []
-    accuracies_majority = []
-
-    for n in n_values:
-        for seed in seeds:
-            torch.manual_seed(seed)
-            pl.seed_everything(seed)
-
-            x_train_selected, y_train_selected = select_samples_per_class(
-                x_train, y_train, n
-            )
-
-            train_dataset = NPYDataset(x_train_selected, y_train_selected)
-            train_loader = DataLoader(
-                train_dataset, batch_size=512, shuffle=False, num_workers=19
-            )
-            test_dataset = NPYDatasetAll(x_test, y_test)
-            test_loader = DataLoader(
-                test_dataset,
-                batch_size=512,
-                shuffle=False,
-                num_workers=19,
-                drop_last=False,
-            )
-
-            H_train, H_test = extract_features(
-                model, train_loader, test_loader
-            )
-
-            accuracies.append(
-                train_and_evaluate_logistic_regression(
-                    H_train, y_train_selected, H_test, y_test
-                )
-            )
-            accuracies_majority.append(
-                train_and_evaluate_logistic_regression_with_majority_vote(
-                    H_train, y_train_selected, H_test, y_test
-                )
-            )
-
-        log_results(n, accuracies, accuracies_majority)
-        accuracies.clear()
-        accuracies_majority.clear()
-
-
-def extract_features(model: SimCLRModuleRN, train_loader: DataLoader, test_loader: DataLoader) -> tuple:
+def extract_features(model: SimCLRModuleRN, loader: DataLoader, device: torch.device) -> np.ndarray:
     """Extract features using the SimCLR model."""
-    H_train, H_test = [], []
-
+    features = []
+    model.eval()
     with torch.no_grad():
-        for x, _ in train_loader:
-            H_train.append(model.get_h(x).cpu().numpy())
-        for x, _ in test_loader:
-            H_test.append(model.get_h(x).cpu().numpy())
+        for x, _ in tqdm(loader, desc="Extracting features", leave=False):
+            x = x.to(device)
+            features.append(model.get_h(x).cpu().numpy())
+    return np.concatenate(features)
 
-    return (
-        np.concatenate(H_train),
-        np.concatenate(H_test),
-    )
-
-
-def train_and_evaluate_logistic_regression(
-    H_train: np.ndarray, y_train: np.ndarray, H_test: np.ndarray, y_test: np.ndarray, reshape: bool = False
-) -> float:
+def train_and_evaluate_logistic_regression(H_train: np.ndarray, y_train: np.ndarray, H_test: np.ndarray, y_test: np.ndarray) -> float:
     """Train and evaluate a logistic regression model."""
     clf = LogisticRegression(max_iter=1000)
-    if reshape:
-        clf.fit(H_train.reshape(H_train.shape[0], -1), y_train)
-        y_pred = clf.predict(H_test.reshape(H_test.shape[0], -1))
-    else:
-        clf.fit(H_train, y_train)
-        y_pred = clf.predict(H_test)
+    clf.fit(H_train, y_train)
+    y_pred = clf.predict(H_test)
     return accuracy_score(y_test, y_pred)
 
-
-def train_and_evaluate_logistic_regression_with_majority_vote(
-    H_train: np.ndarray, y_train: np.ndarray, H_test: np.ndarray, y_test: np.ndarray
-) -> float:
+def train_and_evaluate_logistic_regression_with_majority_vote(H_train: np.ndarray, y_train: np.ndarray, H_test: np.ndarray, y_test: np.ndarray) -> float:
     """Train and evaluate logistic regression with majority vote."""
     clf = LogisticRegression(max_iter=1000)
     clf.fit(H_train, y_train)
     y_pred = clf.predict(H_test).reshape(-1, 1)
-    y_pred_majority_vote = np.apply_along_axis(
-        lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred
-    )
+    y_pred_majority_vote = np.apply_along_axis(lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred)
     return accuracy_score(y_test, y_pred_majority_vote)
 
+def evaluate_model(model: SimCLRModuleRN, x_train: np.ndarray, y_train: np.ndarray, x_test: np.ndarray, y_test: np.ndarray, n_values: List[int], seeds: List[int], device: torch.device) -> None:
+    """Evaluate the model with different number of samples per class."""
+    for n in tqdm(n_values, desc="Evaluating different n values"):
+        accuracies, accuracies_majority = [], []
+        for seed in tqdm(seeds, desc=f"Processing seeds for n={n}", leave=False):
+            torch.manual_seed(seed)
+            pl.seed_everything(seed)
 
-def log_results(n: int, accuracies: list, accuracies_majority: list) -> None:
-    """Log the evaluation results."""
-    logging.info(f"Accuracy for n={n}: {np.mean(accuracies):.4f}")
-    logging.info(
-        f"Majority Vote Accuracy for n={n}: {np.mean(accuracies_majority):.4f}"
-    )
+            x_train_selected, y_train_selected = select_samples_per_class(x_train, y_train, n)
 
+            train_dataset = NPYDataset(x_train_selected, y_train_selected)
+            test_dataset = NPYDataset(x_test, y_test)
+            train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, pin_memory=True)
+            test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, drop_last=False, pin_memory=True)     
+
+            H_train = extract_features(model, train_loader, device)
+            H_test = extract_features(model, test_loader, device)
+
+            accuracies.append(train_and_evaluate_logistic_regression(H_train, y_train_selected, H_test, y_test))
+            accuracies_majority.append(train_and_evaluate_logistic_regression_with_majority_vote(H_train, y_train_selected, H_test, y_test))
+
+        logger.info(f"The Accuracy for n={n}: {np.mean(accuracies):.4f}")
+        logger.info(f"Majority Vote Accuracy for n={n}: {np.mean(accuracies_majority):.4f}")
 
 def main() -> None:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    logger.info(f"Using device: {device}")
+
     seeds = get_random_seeds()
     x_train, y_train, x_test, y_test = load_data()
 
-    # Create and load the SimCLR model
-    model = SimCLRModuleRN()
-    model.load_state_dict(torch.load("simclr/simCLR+resnet/simCLR+RN.pth"))
-    model.inference = True
+    try:
+        model = SimCLRModuleRN()
+        model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+        model.to(device)
+        model.inference = True
+    except FileNotFoundError:
+        logger.error(f"Model file not found: {MODEL_PATH}")
+        return
+    except Exception as e:
+        logger.error(f"Error loading model: {e}")
+        return
 
-    n_values = [5, 10, 50, 100]
-    evaluate_model(model, x_train, y_train, x_test, y_test, n_values, seeds)
-
+    evaluate_model(model, x_train, y_train, x_test, y_test, N_VALUES, seeds, device)
 
 if __name__ == "__main__":
     main()
-    print("Done")
-    print("Check the output.log file for the results.")
+    logger.info("Evaluation complete. Check the testRN.log file for results.")

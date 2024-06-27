@@ -1,81 +1,64 @@
-# training_module.py
+# module_simCLR_IT.py
+import torch
+import torch.nn as nn
+import pytorch_lightning as pl
 from lightly.loss import NTXentLoss
 from lightly.models.modules.heads import SimCLRProjectionHead
-import pytorch_lightning as pl
-import torch.nn as nn
-import torch
-from inception import Inception, InceptionBlock
-import numpy as np
-import torchvision
-from torch import Tensor
+from inception import InceptionBlock
 
 class Flatten(nn.Module):
-    def __init__(self, out_features: int):
-        super(Flatten, self).__init__()
+    def __init__(self, out_features):
+        super().__init__()
         self.output_dim = out_features
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return x.view(-1, self.output_dim)
 
-
-InceptionTime = nn.Sequential(
-
-    InceptionBlock(
-        in_channels=12,
-        n_filters=32,
-        kernel_sizes=[5, 11, 23],
-        bottleneck_channels=32,
-        use_residual=True,
-        activation=nn.ReLU(),
-    ),
-    InceptionBlock(
-        in_channels=32 * 4,
-        n_filters=128,
-        kernel_sizes=[5, 11, 23],
-        bottleneck_channels=32,
-        use_residual=True,
-        activation=nn.ReLU(),
-    ),
-    nn.AdaptiveAvgPool1d(output_size=1),
-    Flatten(out_features=128 * 4 * 1),
-
-)
-
-
 class SimCLRModuleIT(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, learning_rate=0.002):
         super().__init__()
-        self.backbone = InceptionTime
-        hidden_dim = 512
-        self.projection_head = SimCLRProjectionHead(hidden_dim, hidden_dim, 128)
+        self.save_hyperparameters()
+        self.backbone = nn.Sequential(
+            InceptionBlock(in_channels=12, n_filters=64, kernel_sizes=[5, 11, 23], bottleneck_channels=32, use_residual=True, activation=nn.ReLU()),
+            InceptionBlock(in_channels=64 * 4, n_filters=128, kernel_sizes=[5, 11, 23], bottleneck_channels=64, use_residual=True, activation=nn.ReLU()),
+            InceptionBlock(in_channels=128 * 4, n_filters=256, kernel_sizes=[5, 11, 23], bottleneck_channels=64, use_residual=True, activation=nn.ReLU()),
+            InceptionBlock(in_channels=256 * 4, n_filters=512, kernel_sizes=[5, 11, 23], bottleneck_channels=128, use_residual=True, activation=nn.ReLU()),
+            nn.AdaptiveAvgPool1d(output_size=1),
+            Flatten(out_features=512 * 4 * 1),
+        )
+        
+        hidden_dim = 1024
+        self.projection_head = SimCLRProjectionHead(512 * 4, hidden_dim, 256)
+        self.criterion = NTXentLoss(temperature=0.1)
 
-        self.criterion = NTXentLoss()
-
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         x = x.transpose(1, 2)
         h = self.backbone(x)
         z = self.projection_head(h)
         return z
 
-    def training_step(self, batch: tuple, batch_idx: int) -> Tensor:
+    def training_step(self, batch, batch_idx):
         (x0, x1) = batch
-        z0 = self.forward(x0)
-        z1 = self.forward(x1)
+        z0 = self(x0)
+        z1 = self(x1)
         loss = self.criterion(z0, z1)
-        self.log("train_loss_ssl", loss)
+        self.log("train_loss_ssl", loss, on_step=True, on_epoch=True, prog_bar=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        (x0, x1) = batch
+        z0 = self(x0)
+        z1 = self(x1)
+        loss = self.criterion(z0, z1)
+        self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         return loss
 
     def configure_optimizers(self):
-        optim = torch.optim.SGD(
-            self.parameters(), lr=0.02, momentum=0.9, weight_decay=5e-4
-        )
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, 2)
-        return [optim], [scheduler]
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.learning_rate, weight_decay=1e-4)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
+        return [optimizer], [scheduler]
 
-    def train_dataloader(self):
-        pass
-
-    def get_h(self, x: Tensor) -> Tensor:
+    def get_h(self, x):
+        x = x.to(self.device)
         x = x.transpose(1, 2)
-        h = self.backbone(x)
-        return h
+        return self.backbone(x)

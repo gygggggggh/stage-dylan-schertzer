@@ -20,7 +20,6 @@ class NPYDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-
 class NPYDatasetAll(Dataset):
     def __init__(self, data: np.ndarray, targets: np.ndarray) -> None:
         self.data = torch.from_numpy(data).float()
