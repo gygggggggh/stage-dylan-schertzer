@@ -6,6 +6,7 @@ from lightly.loss import NTXentLoss
 from lightly.models.modules.heads import SimCLRProjectionHead
 from inception import InceptionBlock
 
+
 class Flatten(nn.Module):
     def __init__(self, out_features):
         super().__init__()

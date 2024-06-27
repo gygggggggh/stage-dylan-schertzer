@@ -10,6 +10,7 @@ from module_simCLR_RN import SimCLRModuleRN
 from dataset import NPYDataset
 from tqdm import tqdm
 
+
 # Configuration
 TRAIN_DATA_PATH = "simclr/x_train_40k.npy"
 TRAIN_LABELS_PATH = "simclr/y_train_40k.npy"

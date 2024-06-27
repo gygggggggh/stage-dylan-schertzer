@@ -7,6 +7,7 @@ from typing import Dict, Tuple
 from dataset import NPYDataset, NPYDatasetAll
 from module_simCLR_RN import SimCLRModuleRN
 
+
 CONFIG = {
     "x_train_path": "simclr/x_train_40k.npy",
     "y_train_path": "simclr/y_train_40k.npy",
@@ -14,7 +15,7 @@ CONFIG = {
     "y_test_path": "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/y_test.npy",
     "model_save_path": "simclr/simCLR+resnet/simCLR+RN.pth",
     "batch_size": 32,
-    "num_workers": 1,
+    "num_workers": 4,
     "max_epochs": 100,
     "val_split": 0.2,
 }
