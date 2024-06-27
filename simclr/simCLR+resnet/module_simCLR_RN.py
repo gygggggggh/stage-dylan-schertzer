@@ -5,6 +5,7 @@ import torchvision
 from lightly.loss import NTXentLoss
 from lightly.models.modules.heads import SimCLRProjectionHead
 
+
 class SimCLRModuleRN(pl.LightningModule):
     def __init__(self, input_channels=12, hidden_dim=512, output_dim=1024, learning_rate=0.002):
         super().__init__()

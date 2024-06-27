@@ -7,6 +7,7 @@ import logging
 from typing import List, Tuple
 from pathlib import Path
 
+
 # Configure logging
 logging.basicConfig(
     filename="testLR.log",

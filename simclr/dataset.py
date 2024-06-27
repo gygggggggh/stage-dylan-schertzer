@@ -3,6 +3,7 @@ import torch
 from torch.utils.data import Dataset
 import numpy as np
 
+
 class NPYDataset(Dataset):
     def __init__(self, data: np.ndarray, targets: np.ndarray) -> None:
         self.data = torch.from_numpy(data).float()

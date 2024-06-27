@@ -7,6 +7,7 @@ from typing import Dict, Tuple
 from dataset import NPYDataset, NPYDatasetAll
 from module_simCLR_RN import SimCLRModuleRN
 
+
 CONFIG = {
     "x_train_path": "simclr/x_train_40k.npy",
     "y_train_path": "simclr/y_train_40k.npy",

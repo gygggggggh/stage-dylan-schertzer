@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 
 
+
 def correct_sizes(sizes: list) -> list:
     corrected_sizes = [s if s % 2 != 0 else s - 1 for s in sizes]
     return corrected_sizes

@@ -2,6 +2,7 @@ from cuml.linear_model import LogisticRegression
 import numpy as np
 import pickle
 
+
 def train_logistic_regression(x_train, y_train, x_test, y_test):
     # Convert data to float32 to reduce memory usage
     x_train = x_train.astype(np.float32)

@@ -12,6 +12,7 @@ from pathlib import Path
 from module_simCLR_IT import SimCLRModuleIT
 from dataset import NPYDataset, NPYDatasetAll  # Ensure these are implemented correctly
 
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
