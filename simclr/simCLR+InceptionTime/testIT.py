@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from typing import List, Tuple
 from tqdm import tqdm
 import gc
-
+import tqdm
 from module_simCLR_IT import SimCLRModuleIT
 from dataset import NPYDataset, NPYDatasetAll
 
@@ -204,7 +204,7 @@ def evaluate_for_seed(
     accuracies, accuracies_majority = [], []
     H_train = extract_features(model, train_loader, device)
     H_test = extract_features(model, test_loader, device)
-    for n_value in n:
+    for n_value in tqdm(n, desc="Evaluating different n values"):
         for seed in seeds:
             torch.manual_seed(seed)
             pl.seed_everything(seed)
@@ -259,7 +259,7 @@ def main() -> None:
         logging.error(f"Error loading model: {e}")
         return
 
-    evaluate_for_seed(model, x_train, y_train, x_test, y_test, [5, 10, 50, 100], seeds[0], device)
+    evaluate_for_seed(model, x_train, y_train, x_test, y_test, [5, 10, 50, 100], seeds, device)
 
 if __name__ == "__main__":
     main()
