@@ -58,13 +58,19 @@ def select_samples_per_class(
         selected_x.append(x[selected_indices])
         selected_y.append(y[selected_indices])
 
-    return np.concatenate(selected_x), np.concatenate(selected_y)
+    selected_x = np.concatenate(selected_x)
+    selected_y = np.concatenate(selected_y)
+    selected_x = selected_x.reshape(-1, 60, 12)
+    selected_y = selected_y.repeat(100)
+    
+    return selected_x, selected_y
 
 
 def load_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     try:
         x_train = np.load(TRAIN_DATA_PATH["x"])
         y_train = np.load(TRAIN_DATA_PATH["y"])
+        
         x_test = np.load(TEST_DATA_PATH["x"])
         y_test = np.load(TEST_DATA_PATH["y"])
         x_test = x_test.reshape(-1, 60, 12)
@@ -137,6 +143,9 @@ def evaluate_for_seed(
 
     x_train_selected, y_train_selected = select_samples_per_class(x_train, y_train, n)
 
+    print(f'y_train : {y_train[:20*50:50]}')
+    print(f'y_test : {y_test[:20*50:50]}')
+
     train_dataset = NPYDatasetAll(x_train_selected, y_train_selected)
     train_loader = DataLoader(
         train_dataset,
@@ -184,6 +193,9 @@ def evaluate_for_seed(
 
     x_train_selected, y_train_selected = select_samples_per_class(x_train, y_train, n)
 
+    print(f'y_train : {y_train[:20*50:50]}')
+    print(f'y_test : {y_test[:20*50:50]}')
+    
     train_dataset = NPYDatasetAll(x_train_selected, y_train_selected)
     train_loader = DataLoader(
         train_dataset,
@@ -203,6 +215,11 @@ def evaluate_for_seed(
     )
 
     H_train = extract_features(model, train_loader, device)
+    
+    print(f'H_train shape : {H_train.shape}')
+    print(f'y_train_selected shape : {y_train_selected.shape}')
+    
+    
     H_test = extract_features(model, test_loader, device)
 
     accuracy = train_and_evaluate_logistic_regression(
@@ -236,7 +253,9 @@ def main() -> None:
         logging.error(f"Error loading model: {e}")
         return
 
-    evaluate_for_seed(model, x_train, y_train, x_test, y_test, 5, 0, device)
+    acc, acc_majority = evaluate_for_seed(model, x_train, y_train, x_test, y_test, 5, 0, device)
+    logging.info(f"The Accuracy: {acc}")
+    logging.info(f"The Accuracy with majority vote: {acc_majority}")
 
 if __name__ == "__main__":
     main()
