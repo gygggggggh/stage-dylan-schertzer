@@ -16,7 +16,7 @@ CONFIG = {
     "model_save_path": "simclr/simCLR+resnet/simCLR+RN.pth",
     "batch_size": 32,
     "num_workers": 4,
-    "max_epochs": 100,
+    "max_epochs": 200,
     "val_split": 0.2,
 }
 

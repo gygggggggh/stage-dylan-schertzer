@@ -27,6 +27,9 @@ class NPYDatasetAll(Dataset):
         self.targets = torch.from_numpy(targets).float()
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
+        print(f"data: {self.data.shape}")
+        self.data = self.data.reshape(-1,60,12)
+        print(f"data: {self.data.shape}")
         return self.data[index], self.targets[index]
 
     def __len__(self):

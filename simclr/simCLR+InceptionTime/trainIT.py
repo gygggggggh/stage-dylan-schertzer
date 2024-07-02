@@ -27,7 +27,7 @@ CONFIG = {
     "model_save_path": "simclr/simCLR+InceptionTime/simCLR+IT.pth",
     "batch_size": 64,
     "num_workers": 8,
-    "max_epochs": 10,
+    "max_epochs": 100,
     "learning_rate": 0.002,
     "val_split": 0.2,
     "patience": 20,

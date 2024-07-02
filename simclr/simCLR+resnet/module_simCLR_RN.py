@@ -47,4 +47,5 @@ class SimCLRModuleRN(pl.LightningModule):
     def get_h(self, x):
         x = x.unsqueeze(1).transpose(1, 3)
         h = self.backbone(x)
+        print(h.size())
         return h.view(h.size(0), -1)
