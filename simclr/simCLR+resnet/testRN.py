@@ -17,7 +17,7 @@ TRAIN_LABELS_PATH = "simclr/y_train_40k.npy"
 TEST_DATA_PATH = "stage_dylan/visulisation/npy/x_test.npy"
 TEST_LABELS_PATH = "stage_dylan/visulisation/npy/y_test.npy"
 MODEL_PATH = "simclr/simCLR+resnet/simCLR+RN.pth"
-BATCH_SIZE = 512
+BATCH_SIZE = 256
 NUM_WORKERS = 10
 N_VALUES = [5, 10, 50, 100]
 NUM_SEEDS = 20
@@ -41,7 +41,6 @@ def get_random_seeds(
 def select_samples_per_class(
     x: np.ndarray, y: np.ndarray, n_samples: int
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Select a fixed number of samples per class."""
     unique_classes = np.unique(y)
     selected_x, selected_y = [], []
 
@@ -55,7 +54,12 @@ def select_samples_per_class(
         selected_x.append(x[selected_indices])
         selected_y.append(y[selected_indices])
 
-    return np.concatenate(selected_x), np.concatenate(selected_y)
+    selected_x = np.concatenate(selected_x)
+    selected_y = np.concatenate(selected_y)
+    selected_x = selected_x.reshape(-1, 60, 12)
+    selected_y = selected_y.repeat(100)
+    
+    return selected_x, selected_y
 
 
 def load_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -77,19 +81,16 @@ def load_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     return x_train, y_train, x_test, y_test
 
 
-def extract_features(
-    model: SimCLRModuleRN, loader: DataLoader, device: torch.device
-) -> np.ndarray:
-    """Extract features using the SimCLR model."""
+def extract_features(model: SimCLRModuleRN, loader: DataLoader, device: torch.device) -> np.ndarray:
     features = []
     model.eval()
     with torch.no_grad():
         for x, _ in tqdm(loader, desc="Extracting features", leave=False):
             x = x.to(device)
-            # print(f"x: {x.shape}")
+            # Reshape the input: [batch_size, 12] -> [batch_size, 12, 7, 7]
+            x = x.unsqueeze(2).unsqueeze(3).repeat(1, 1, 7, 7)
             features.append(model.get_h(x).cpu().numpy())
     return np.concatenate(features)
-
 
 def train_and_evaluate_logistic_regression(
     H_train: np.ndarray, y_train: np.ndarray, H_test: np.ndarray, y_test: np.ndarray

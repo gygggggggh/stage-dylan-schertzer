@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from typing import List, Tuple
 from tqdm import tqdm
 import gc
-import tqdm
+
 from module_simCLR_IT import SimCLRModuleIT
 from dataset import NPYDataset, NPYDatasetAll
 
@@ -26,13 +26,17 @@ TEST_DATA_PATH = {
 
 # Configuration
 CONFIG = {
-    "num_seeds": 1,
+    "num_seeds": 20,
     "n_values": [5, 10, 50, 100],
     "batch_size": 32,
     "num_workers": 4,
 }
 
-logging.basicConfig(filename=LOG_FILE, level=logging.INFO)
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 logging.info("simCLR+InceptionTime")
 
 
@@ -58,13 +62,19 @@ def select_samples_per_class(
         selected_x.append(x[selected_indices])
         selected_y.append(y[selected_indices])
 
-    return np.concatenate(selected_x), np.concatenate(selected_y)
+    selected_x = np.concatenate(selected_x)
+    selected_y = np.concatenate(selected_y)
+    selected_x = selected_x.reshape(-1, 60, 12)
+    selected_y = selected_y.repeat(100)
+    
+    return selected_x, selected_y
 
 
 def load_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     try:
         x_train = np.load(TRAIN_DATA_PATH["x"])
         y_train = np.load(TRAIN_DATA_PATH["y"])
+        
         x_test = np.load(TEST_DATA_PATH["x"])
         y_test = np.load(TEST_DATA_PATH["y"])
         x_test = x_test.reshape(-1, 60, 12)
@@ -121,7 +131,6 @@ def train_and_evaluate_logistic_regression_with_majority_vote(
     )
     return accuracy_score(y_test[::100], y_pred_majority_vote)
 
-
 def evaluate_for_seed(
     model: SimCLRModuleIT,
     x_train: np.ndarray,
@@ -168,78 +177,33 @@ def evaluate_for_seed(
 
     return accuracy, accuracy_majority
 
-
-def evaluate_for_seed(
+def evaluate_model(
     model: SimCLRModuleIT,
     x_train: np.ndarray,
     y_train: np.ndarray,
     x_test: np.ndarray,
     y_test: np.ndarray,
-    n: List[int],
+    n_values: List[int],
     seeds: List[int],
     device: torch.device = torch.device("cuda"),
-) -> Tuple[float, float]:
-    torch.manual_seed(seed)
-    pl.seed_everything(seed)
-
-    x_train_selected, y_train_selected = select_samples_per_class(x_train, y_train, n)
-
-    train_dataset = NPYDatasetAll(x_train_selected, y_train_selected)
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=CONFIG["batch_size"],
-        shuffle=False,
-        num_workers=CONFIG["num_workers"],
-        pin_memory=True,
-    )
-    test_dataset = NPYDatasetAll(x_test, y_test)
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=CONFIG["batch_size"],
-        shuffle=False,
-        num_workers=CONFIG["num_workers"],
-        drop_last=False,
-        pin_memory=True,
-    )
-    accuracies, accuracies_majority = [], []
-    H_train = extract_features(model, train_loader, device)
-    H_test = extract_features(model, test_loader, device)
-    for n_value in tqdm(n, desc="Evaluating different n values"):
-        for seed in seeds:
-            torch.manual_seed(seed)
-            pl.seed_everything(seed)
-
-            x_train_selected, y_train_selected = select_samples_per_class(x_train, y_train, n)
-
-            train_dataset = NPYDatasetAll(x_train_selected, y_train_selected)
-            train_loader = DataLoader(
-                train_dataset,
-                batch_size=CONFIG["batch_size"],
-                shuffle=False,
-                num_workers=CONFIG["num_workers"],
-                pin_memory=True,
+) -> None:
+    for n in n_values:
+        accuracies = []
+        accuracies_majority = []
+        for seed in tqdm(seeds, desc=f"Evaluating n={n}"):
+            accuracy, accuracy_majority = evaluate_for_seed(
+                model, x_train, y_train, x_test, y_test, n, seed
             )
-            test_dataset = NPYDatasetAll(x_test, y_test)
-            test_loader = DataLoader(
-                test_dataset,
-                batch_size=CONFIG["batch_size"],
-                shuffle=False,
-                num_workers=CONFIG["num_workers"],
-                drop_last=False,
-                pin_memory=True,
-            )
+            accuracies.append(accuracy)
+            accuracies_majority.append(accuracy_majority)
 
-            H_train = extract_features(model, train_loader, device)
-            H_test = extract_features(model, test_loader, device)
+        logging.info(f"The Accuracy for n={n}: {np.mean(accuracies):.4f}")
+        logging.info(
+            f"Majority Vote Accuracy for n={n}: {np.mean(accuracies_majority):.4f}"
+        )
 
-            accuracies.append(
-                train_and_evaluate_logistic_regression(H_train, y_train_selected, H_test, y_test)
-            )
-            accuracies_majority.append(
-                train_and_evaluate_logistic_regression_with_majority_vote(H_train, y_train_selected, H_test, y_test)
-            )
-        logging.info(f"The Accuracy for n={n_value}: {np.mean(accuracies):.4f}")
-        logging.info(f"Majority Vote Accuracy for n={n_value}: {np.mean(accuracies_majority):.4f}")
+        gc.collect()
+
 
 def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -259,7 +223,8 @@ def main() -> None:
         logging.error(f"Error loading model: {e}")
         return
 
-    evaluate_for_seed(model, x_train, y_train, x_test, y_test, [5, 10, 50, 100], seeds, device)
+    evaluate_model(model, x_train, y_train, x_test, y_test, CONFIG["n_values"], seeds, device)
+    
 
 if __name__ == "__main__":
     main()

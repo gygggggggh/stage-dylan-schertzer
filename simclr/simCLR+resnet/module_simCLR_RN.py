@@ -18,14 +18,12 @@ class SimCLRModuleRN(pl.LightningModule):
 
         self.projection_head = SimCLRProjectionHead(hidden_dim, hidden_dim, output_dim)
         self.criterion = NTXentLoss()
-
     def forward(self, x):
-        x = x.unsqueeze(1).transpose(1, 3)
         h = self.backbone(x)
         h = h.view(h.size(0), -1)
         z = self.projection_head(h)
         return z
-
+    
     def training_step(self, batch, batch_idx):
         (x0, x1) = batch
         z0 = self(x0)
@@ -45,7 +43,5 @@ class SimCLRModuleRN(pl.LightningModule):
         return [optimizer], [scheduler]
 
     def get_h(self, x):
-        x = x.unsqueeze(1).transpose(1, 3)
         h = self.backbone(x)
-        print(h.size())
         return h.view(h.size(0), -1)

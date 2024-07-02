@@ -60,26 +60,3 @@ class SimCLRModuleIT(pl.LightningModule):
         x = x.to(self.device)
         x = x.transpose(1, 2)
         return self.backbone(x)
-
-
-    def on_validation_epoch_end(self):
-        if self.current_epoch:
-            self.log("val_loss", self.trainer.callback_metrics["val_loss"], on_step=True, on_epoch=True, prog_bar=True)
-            self.log("train_loss_ssl", self.trainer.callback_metrics["train_loss_ssl"], on_step=True, on_epoch=True, prog_bar=True)
-            self.log("epoch", self.current_epoch, on_step=True, on_epoch=True, prog_bar=True)
-            self.log("lr", self.trainer.optimizers[0].param_groups[0]["lr"], on_step=True, on_epoch=True, prog_bar=True)
-            self.log("momentum", self.trainer.optimizers[0].param_groups[0]["betas"][0], on_step=True, on_epoch=True, prog_bar=True)
-            self.log("weight_decay", self.trainer.optimizers[0].param_groups[0]["weight_decay"], on_step=True, on_epoch=True, prog_bar=True)
-            self.log("batch_size", self.trainer.train_dataloader.batch_size, on_step=True, on_epoch=True, prog_bar=True)
-            self.log("num_workers", self.trainer.train_dataloader.num_workers, on_step=True, on_epoch=True, prog_bar=True)
-            self.log("num_samples", len(self.trainer.train_dataloader.dataset), on_step=True, on_epoch=True, prog_bar=True)
-            self.log("num_batches", len(self.trainer.train_dataloader), on_step=True, on_epoch=True, prog_bar=True)
-            self.log("num_val_samples", len(self.trainer.val_dataloaders[0].dataset), on_step=True, on_epoch=True, prog_bar=True)
-            self.log("num_val_batches", len(self.trainer.val_dataloaders[0]), on_step=True, on_epoch=True, prog_bar=True)
-            self.log("num_test_samples", len(self.trainer.test_dataloaders[0].dataset), on_step=True, on_epoch=True, prog_bar=True)
-            self.log("num_test_batches", len(self.trainer.test_dataloaders[0]), on_step=True, on_epoch=True, prog_bar=True)
-            self.log("num_classes", len(self.trainer.train_dataloader.dataset.targets.unique()), on_step=True, on_epoch=True, prog_bar=True)
-            self.log("num_features", self.backbone.output_dim, on_step=True, on_epoch=True, prog_bar=True)
-            self.log("hidden_dim", self.projection_head.hidden_dim, on_step = True, on_epoch = True, prog_bar = True)
-
-            return self.trainer.callback_metrics["val_loss"]

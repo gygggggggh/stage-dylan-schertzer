@@ -29,9 +29,8 @@ def main() -> None:
         "simclr/simCLR+InceptionTime/testIT.py",
         "simclr/simCLR+resnet/trainRN.py",
         "simclr/simCLR+resnet/testRN.py",
-        "simclr/LR/trainLR.py",
-        "simclr/LR/testLR.py",
-        "simclr/question.py",
+        "simclr/LR/train_testLR.py",
+        "simclr/graphs.py"
     ]
 
     # Run each script
