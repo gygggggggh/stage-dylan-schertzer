@@ -175,8 +175,8 @@ def evaluate_for_seed(
     y_train: np.ndarray,
     x_test: np.ndarray,
     y_test: np.ndarray,
-    n: int,
-    seed: int,
+    n: List[int],
+    seeds: List[int],
     device: torch.device = torch.device("cuda"),
 ) -> Tuple[float, float]:
     torch.manual_seed(seed)
@@ -201,22 +201,45 @@ def evaluate_for_seed(
         drop_last=False,
         pin_memory=True,
     )
-
+    accuracies, accuracies_majority = [], []
     H_train = extract_features(model, train_loader, device)
     H_test = extract_features(model, test_loader, device)
+    for n_value in n:
+        for seed in seeds:
+            torch.manual_seed(seed)
+            pl.seed_everything(seed)
 
-    accuracy = train_and_evaluate_logistic_regression(
-        H_train, y_train_selected, H_test, y_test
-    )
-    accuracy_majority = train_and_evaluate_logistic_regression_with_majority_vote(
-        H_train, y_train_selected, H_test, y_test
-    )
+            x_train_selected, y_train_selected = select_samples_per_class(x_train, y_train, n)
 
-    del H_train, H_test
-    gc.collect()
-    torch.cuda.empty_cache()
+            train_dataset = NPYDatasetAll(x_train_selected, y_train_selected)
+            train_loader = DataLoader(
+                train_dataset,
+                batch_size=CONFIG["batch_size"],
+                shuffle=False,
+                num_workers=CONFIG["num_workers"],
+                pin_memory=True,
+            )
+            test_dataset = NPYDatasetAll(x_test, y_test)
+            test_loader = DataLoader(
+                test_dataset,
+                batch_size=CONFIG["batch_size"],
+                shuffle=False,
+                num_workers=CONFIG["num_workers"],
+                drop_last=False,
+                pin_memory=True,
+            )
 
-    return accuracy, accuracy_majority
+            H_train = extract_features(model, train_loader, device)
+            H_test = extract_features(model, test_loader, device)
+
+            accuracies.append(
+                train_and_evaluate_logistic_regression(H_train, y_train_selected, H_test, y_test)
+            )
+            accuracies_majority.append(
+                train_and_evaluate_logistic_regression_with_majority_vote(H_train, y_train_selected, H_test, y_test)
+            )
+        logging.info(f"The Accuracy for n={n_value}: {np.mean(accuracies):.4f}")
+        logging.info(f"Majority Vote Accuracy for n={n_value}: {np.mean(accuracies_majority):.4f}")
 
 def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -236,7 +259,7 @@ def main() -> None:
         logging.error(f"Error loading model: {e}")
         return
 
-    evaluate_for_seed(model, x_train, y_train, x_test, y_test, 5, 0, device)
+    evaluate_for_seed(model, x_train, y_train, x_test, y_test, [5, 10, 50, 100], seeds[0], device)
 
 if __name__ == "__main__":
     main()
