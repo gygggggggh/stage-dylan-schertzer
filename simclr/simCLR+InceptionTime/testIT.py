@@ -28,8 +28,8 @@ TEST_DATA_PATH = {
 CONFIG = {
     "num_seeds": 20,
     "n_values": [5, 10, 50, 100],
-    "batch_size": 32,
-    "num_workers": 4,
+    "batch_size": 512,
+    "num_workers": 10,
 }
 
 logging.basicConfig(
@@ -119,7 +119,7 @@ def train_and_evaluate_logistic_regression_with_majority_vote(
     clf.fit(H_train, y_train)
     
     # Process test data in batches
-    batch_size = 32
+    batch_size = 512
     y_pred = []
     for i in range(0, len(H_test), batch_size):
         batch = H_test[i:i+batch_size]
@@ -129,7 +129,7 @@ def train_and_evaluate_logistic_regression_with_majority_vote(
     y_pred_majority_vote = np.apply_along_axis(
         lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred
     )
-    return accuracy_score(y_test[::100], y_pred_majority_vote)
+    return accuracy_score(y_test, y_pred_majority_vote)
 
 def evaluate_for_seed(
     model: SimCLRModuleIT,

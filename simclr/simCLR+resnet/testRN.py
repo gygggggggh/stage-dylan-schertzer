@@ -17,7 +17,7 @@ TRAIN_LABELS_PATH = "simclr/y_train_40k.npy"
 TEST_DATA_PATH = "stage_dylan/visulisation/npy/x_test.npy"
 TEST_LABELS_PATH = "stage_dylan/visulisation/npy/y_test.npy"
 MODEL_PATH = "simclr/simCLR+resnet/simCLR+RN.pth"
-BATCH_SIZE = 256
+BATCH_SIZE = 512
 NUM_WORKERS = 10
 N_VALUES = [5, 10, 50, 100]
 NUM_SEEDS = 20
@@ -115,7 +115,6 @@ def train_and_evaluate_logistic_regression_with_majority_vote(
     print(f"HH_train: {H_train.shape}")
     print(f"yy_train: {y_train.shape}")
     clf.fit(H_train, y_train)
-    y_test = y_test.repeat(100)
     y_pred = clf.predict(H_test)
     print(y_pred.shape)
     print(y_pred.shape)
