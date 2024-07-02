@@ -13,6 +13,8 @@ from module_simCLR_IT import SimCLRModuleIT
 from dataset import NPYDataset, NPYDatasetAll
 
 
+
+
 # Constants
 LOG_FILE = "testIT.log"
 MODEL_PATH = "simclr/simCLR+InceptionTime/simCLR+IT.pth"

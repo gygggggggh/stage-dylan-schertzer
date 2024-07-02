@@ -4,8 +4,8 @@ import pytorch_lightning as pl
 from lightly.loss import NTXentLoss
 from lightly.models.modules.heads import SimCLRProjectionHead
 from inception import InceptionBlock
-from cuml.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
+
+
 class Flatten(nn.Module):
     def __init__(self, out_features):
         super().__init__()
