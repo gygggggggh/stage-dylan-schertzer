@@ -107,6 +107,7 @@ def train_model(model, train_loader, val_loader, config):
         max_epochs=config["max_epochs"],
         callbacks=[checkpoint_callback, early_stop_callback],
         log_every_n_steps=1,
+        devices=1,
     )
 
     trainer.fit(model, train_loader, val_loader)
