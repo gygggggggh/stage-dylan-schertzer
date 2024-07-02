@@ -51,7 +51,7 @@ def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> Tu
     selected_x = np.concatenate(selected_x)
     selected_y = np.concatenate(selected_y)
     
-    logger.info(f"Shape after select_samples_per_class: x: {selected_x.shape}, y: {selected_y.shape}")
+    print(f"Shape after select_samples_per_class: x: {selected_x.shape}, y: {selected_y.shape}")
     return selected_x, selected_y
 
 def load_data(config: dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -112,7 +112,7 @@ def fit_and_evaluate_model(
     else:
         accuracy = accuracy_score(y_test, y_pred)
 
-    return accuracy, val_accuracy
+    return accuracy
 
 
 def evaluate_model(
@@ -135,7 +135,7 @@ def evaluate_model(
             print(f"x_train_selected: {x_train_selected.shape}, y_train_selected: {y_train_selected.shape}")
             print(f"x_test: {x_test.shape}, y_test: {y_test.shape}")
 
-            accuracy, _ = fit_and_evaluate_model(
+            accuracy = fit_and_evaluate_model(
                 x_train_selected,
                 y_train_selected,
                 x_test,
@@ -144,7 +144,7 @@ def evaluate_model(
             )
             accuracies.append(accuracy)
 
-            accuracy_majority, _ = fit_and_evaluate_model(
+            accuracy_majority = fit_and_evaluate_model(
                 x_train_selected,
                 y_train_selected,
                 x_test,
