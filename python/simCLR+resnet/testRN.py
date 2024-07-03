@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 from cuml.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from torch.utils.data import DataLoader
-from module_simCLR_RN import SimCLRModuleRN
+from module_simCLR_RN import SimCLRModuleRNAll
 from tqdm import tqdm
 from dataset import NPYDatasetAll
 
