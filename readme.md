@@ -4,12 +4,13 @@ This project implements SimCLR (Simple Framework for Contrastive Learning of Vis
 
 ## Project Structure
 
-- `LR/`: Logistic Regression implementation
 - `weights/`: Data directory
 - `graphs.py`: Performance visualization
 - `main.py`: Main script for training and testing
-- `simclr.py`: SimCLR implementation
-
+- `simclr+resnet/`: SimCLR with ResNet backbone
+- `simclr+inceptiontime/`: SimCLR with InceptionTime backbone
+- `LR/`: Logistic Regression implementation
+ 
 ## Key Components
 
 1. **SimCLRModuleRN**: PyTorch Lightning module for SimCLR with ResNet backbone
