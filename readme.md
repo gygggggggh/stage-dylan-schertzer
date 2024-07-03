@@ -1,82 +1,63 @@
-# Machine Learning Models for Time Series Classification
+# SimCLR and Logistic Regression for Time Series Classification
 
-This project focuses on the implementation and evaluation of various machine learning models for time series classification. It includes logistic regression, SimCLR with InceptionTime, and SimCLR with ResNet models, each tailored for specific datasets. The project structure is designed to facilitate easy experimentation with different models and configurations.
+This project implements SimCLR (Simple Framework for Contrastive Learning of Visual Representations) and Logistic Regression for time series classification tasks.
 
 ## Project Structure
 
-- `python/`: Main directory for Python scripts and models.
-    - `dataset.py`: Utility functions for data loading and preprocessing.
-    - `graph.py`: Script for generating evaluation graphs from log files.
-    - `LR/`: Logistic Regression model and training/testing scripts.
-        - `train_testLR.py`: Script for training and testing the Logistic Regression model.
-    - `simCLR+InceptionTime/`: Directory for the SimCLR model with InceptionTime.
-        - `dataset.py`, `inception.py`, `module_simCLR_IT.py`: Modules for the SimCLR+InceptionTime model.
-        - `testIT.py`, `trainIT.py`: Scripts for testing and training the SimCLR+InceptionTime model.
-    - `simCLR+resnet/`: Directory for the SimCLR model with ResNet.
-        - `dataset.py`, `module_simCLR_RN.py`: Modules for the SimCLR+ResNet model.
-        - `testRN.py`, `trainRN.py`: Scripts for testing and training the SimCLR+ResNet model.
-    - `main.py`: Main script for the project (if applicable).
-- `weights/`: Directory containing datasets and weights for models.
-- `testIT.log`, `testLR.log`, `testRN.log`: Log files for model evaluations.
-- `readme.md`: This README file.
+- `LR/`: Logistic Regression implementation
+- `weights/`: Data directory
+- `graphs.py`: Performance visualization
+- `main.py`: Main script for training and testing
+- `simclr.py`: SimCLR implementation
 
-## Setup
+## Key Components
 
-To set up the project, ensure you have Python 3.11 or later installed. It's recommended to use a virtual environment:
+1. **SimCLRModuleRN**: PyTorch Lightning module for SimCLR with ResNet backbone
+2. **SimCLRModuleIT**: PyTorch Lightning module for SimCLR with InceptionTime backbone
+3. **NPYDataset** and **NPYDatasetAll**: Custom dataset classes for NumPy array data
+4. **Logistic Regression**: GPU-accelerated implementation using cuML
 
-```sh
-conda create -n ml -c rapidsai -c conda-forge -c nvidia rapids=24.04
-python=3.11 cuda-version=12.2 aeon
+## Data
 
-pip install tensorflow[and-cuda]
+- Training: x_train (40000, 100, 60, 12), y_train (40000,)
+- Testing: x_test (10000, 100, 60, 12), y_test (10000,)
 
-conda activate ml
-```
+## Setup and Execution
 
-## X_train, y_train, X_test, y_test format
+1. Install dependencies: PyTorch, PyTorch Lightning, NumPy, scikit-learn, cuML, tqdm, matplotlib, pandas
+2. Place data in `weights/` directory
+3. Run: `python main.py`
 
-The input data should be in the following format:
+## Configuration
 
-- `X_train`: Training data with shape `(n_samples, n_pixel_per_sample, n_timestamps, n_channels)`.
-- `y_train`: Training labels with shape `(n_samples,)`.
-- `X_test`: Testing data with shape `(n_samples, n_pixel_per_sample, n_timestamps, n_channels)`.
-- `y_test`: Testing labels with shape `(n_samples,)`.
-
-## Training and Testing
-
-To train and test the models, just run the main 
-
-```sh
-python main.py
-```
-
-This script will train and test the models on the specified datasets. The results will be saved in the log files.
+Key parameters (adjust in respective scripts):
+- Batch size: 32
+- Max epochs: 50
+- Learning rate: 0.002
+- N values for few-shot learning: [5, 10, 50, 100]
 
 ## Evaluation
 
-To generate evaluation graphs from the log files, run the following command:
+- Few-shot learning performance (5, 10, 50, 100 samples per class)
+- Majority voting over 100 time series per sample (5, 10, 50, 100 samples per class)
 
-```sh
-python graph.py
-```
+## Logging
 
-This script will generate graphs for the Logistic Regression, SimCLR+InceptionTime, and SimCLR+ResNet models.
+- `testRN.log`: SimCLR+ResNet testing
+- `testLR.log`: Logistic Regression testing
+- `testIT.log`: SimCLR+InceptionTime testing
 
-## built with 
+## Results
 
-- [pytorch](https://pytorch.org/) - PyTorch is an open source machine learning library based on the Torch library.
-- [InceptionTime-Pytorch](https://github.com/TheMrGhostman/InceptionTime-Pytorch/blob/master/inception.py) - PyTorch implementation of the InceptionTime model.
-- [sklearn](https://scikit-learn.org/stable/) - Scikit-learn is a free software machine learning library for the Python programming language.
-- [SimCLR](https://github.com/google-research/simclr) - Official implementation of SimCLR in PyTorch.
-- [ResNet](https://pytorch.org/vision/stable/models.html) - PyTorch implementation of the ResNet model.
-- [matplotlib](https://matplotlib.org/) - Matplotlib is a comprehensive library for creating static, animated, and interactive visualizations in Python.
-- [numpy](https://numpy.org/) - NumPy is the fundamental package for scientific computing in Python.
-- [tqdm](https://tqdm.github.io/) - A fast, extensible progress bar for loops and CLI.
-- [pandas](https://pandas.pydata.org/) - Pandas is a fast, powerful, flexible, and easy-to-use open-source data analysis and data manipulation library built on top of the Python programming language.
-- [lightly SLL](https://docs.lightly.ai/) - Lightly is a Python library that helps you to train self-supervised learning models on image data.
-- [torchvision](https://pytorch.org/vision/stable/index.html) - The torchvision package consists of popular datasets, model architectures, and common image transformations for computer vision.
+Check log files for accuracy results. Use `graphs.py` for performance visualizations.
 
-## Authors
+## Note
 
-- [gygggggggh](https://github.com/gygggggggh)
+Designed for research on high-dimensional time series data. Requires significant computational resources, especially GPU memory.
 
+## References
+
+- [SimCLR: A Simple Framework for Contrastive Learning of Visual Representations](https://arxiv.org/abs/2002.05709)
+- [InceptionTime: Finding AlexNet for Time Series Classification](https://arxiv.org/abs/1909.04939)
+- [InceptionTime-Pytorch](https://github.com/TheMrGhostman/InceptionTime-Pytorch/blob/master/inception.py)
+- [Lightly SSL ](https://docs.lightly.ai/self-supervised-learning/index.html)

@@ -64,9 +64,6 @@ def load_data(config: dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndar
         logger.error(f"Error loading data: {e}")
         raise
 
-    print(f"Data shapes after loading:")
-    print(f"x_train: {x_train.shape}, y_train: {y_train.shape}")
-    print(f"x_test: {x_test.shape}, y_test: {y_test.shape}")
     return x_train, y_train, x_test, y_test
 
 
