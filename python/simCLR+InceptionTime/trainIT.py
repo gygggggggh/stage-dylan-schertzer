@@ -10,7 +10,7 @@ from pathlib import Path
 
 # Import your custom modules
 from module_simCLR_IT import SimCLRModuleIT
-from dataset import NPYDataset, NPYDatasetAll  # Ensure these are implemented correctly
+from dataset import NPYDataset, NPYDatasetAll  
 
 
 # Setup logging
@@ -20,14 +20,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 CONFIG = {
-    "x_train_path": "simclr/x_train_40k.npy",
-    "y_train_path": "simclr/y_train_40k.npy",
-    "x_test_path": "stage_dylan/visulisation/npy/x_test.npy",
-    "y_test_path": "stage_dylan/visulisation/npy/y_test.npy",
-    "model_save_path": "simclr/simCLR+InceptionTime/simCLR+IT.pth",
+    "x_train_path": "weights/x_train_40k.npy",  
+    "y_train_path": "weights/y_train_40k.npy",  
+    "x_test_path": "weights/x_test.npy",
+    "y_test_path": "weights/y_test.npy",
+    "model_save_path": "python/simCLR+InceptionTime/simCLR+IT.pth",
     "batch_size": 64,
     "num_workers": 8,
-    "max_epochs": 100,
+    "max_epochs": 50,
     "learning_rate": 0.002,
     "val_split": 0.2,
     "patience": 20,
@@ -66,7 +66,7 @@ def create_data_loaders(
     """Create data loaders for training, validation, and testing."""
     train_dataset = NPYDataset(x_train, y_train)
     val_dataset = NPYDataset(x_val, y_val)
-    test_dataset = NPYDatasetAll(x_test, y_test)
+    test_dataset = NPYDataset(x_test, y_test)
 
     train_loader = DataLoader(
         train_dataset,

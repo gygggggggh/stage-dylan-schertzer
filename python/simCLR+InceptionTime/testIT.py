@@ -10,23 +10,23 @@ from tqdm import tqdm
 import gc
 
 from module_simCLR_IT import SimCLRModuleIT
-from dataset import NPYDataset, NPYDatasetAll
+from dataset import NPYDatasetAll
 
 
 
 
 # Constants
 LOG_FILE = "testIT.log"
-MODEL_PATH = "simclr/simCLR+InceptionTime/simCLR+IT.pth"
-TRAIN_DATA_PATH = {"x": "simclr/x_train_40k.npy", "y": "simclr/y_train_40k.npy"}
+MODEL_PATH = "python/simCLR+InceptionTime/simCLR+IT.pth"
+TRAIN_DATA_PATH = {"x": "weights/x_train_40k.npy", "y": "weights/y_train_40k.npy"}
 TEST_DATA_PATH = {
-    "x": "stage_dylan/visulisation/npy/x_test.npy",
-    "y": "stage_dylan/visulisation/npy/y_test.npy",
+    "x": "weights/x_test.npy",
+    "y": "weights/y_test.npy",
 }
 
 # Configuration
 CONFIG = {
-    "num_seeds": 20,
+    "num_seeds": 1,
     "n_values": [5, 10, 50, 100],
     "batch_size": 512,
     "num_workers": 10,

@@ -7,20 +7,19 @@ from cuml.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from torch.utils.data import DataLoader
 from module_simCLR_RN import SimCLRModuleRN
-from dataset import NPYDataset
 from tqdm import tqdm
-
+from dataset import NPYDatasetAll
 
 # Configuration
-TRAIN_DATA_PATH = "simclr/x_train_40k.npy"
-TRAIN_LABELS_PATH = "simclr/y_train_40k.npy"
-TEST_DATA_PATH = "stage_dylan/visulisation/npy/x_test.npy"
-TEST_LABELS_PATH = "stage_dylan/visulisation/npy/y_test.npy"
-MODEL_PATH = "simclr/simCLR+resnet/simCLR+RN.pth"
+TRAIN_DATA_PATH = "weights/x_train_40k.npy"
+TRAIN_LABELS_PATH = "weights/y_train_40k.npy"
+TEST_DATA_PATH = "weights/x_test.npy"
+TEST_LABELS_PATH = "weights/y_test.npy"
+MODEL_PATH = "python/simCLR+resnet/simCLR+RN.pth"
 BATCH_SIZE = 512
 NUM_WORKERS = 10
 N_VALUES = [5, 10, 50, 100]
-NUM_SEEDS = 20
+NUM_SEEDS = 1
 
 # Setup logging
 logging.basicConfig(
@@ -87,10 +86,15 @@ def extract_features(model: SimCLRModuleRN, loader: DataLoader, device: torch.de
     with torch.no_grad():
         for x, _ in tqdm(loader, desc="Extracting features", leave=False):
             x = x.to(device)
-            # Reshape the input: [batch_size, 12] -> [batch_size, 12, 7, 7]
-            x = x.unsqueeze(2).unsqueeze(3).repeat(1, 1, 7, 7)
+            # x is in shape (batch_size, 60, 12)
+            # Reshape to (batch_size, 12, 60, 1)
+            x = x.permute(0, 2, 1).unsqueeze(-1)
+            # Interpolate to (batch_size, 12, 7, 7)
+            x = torch.nn.functional.interpolate(x, size=(7, 7), mode='bilinear', align_corners=False)
             features.append(model.get_h(x).cpu().numpy())
     return np.concatenate(features)
+
+
 
 def train_and_evaluate_logistic_regression(
     H_train: np.ndarray, y_train: np.ndarray, H_test: np.ndarray, y_test: np.ndarray
@@ -107,32 +111,17 @@ def train_and_evaluate_logistic_regression_with_majority_vote(
 ) -> float:
     """Train and evaluate logistic regression with majority vote."""
     H_test
-    print(f"H_test: {H_test.shape}")
-    print(f"y_test: {y_test.shape}")
-    print(f"H_test: {H_test.shape}")
-    print(f"y_test: {y_test.shape}")
     clf = LogisticRegression(max_iter=1000)
     print(f"HH_train: {H_train.shape}")
     print(f"yy_train: {y_train.shape}")
     clf.fit(H_train, y_train)
     y_pred = clf.predict(H_test)
-    print(y_pred.shape)
-    print(y_pred.shape)
-    print(y_pred.shape)
-    print(y_pred.shape)
-    y_pred = y_pred.reshape(-1, 1)
-    print(y_pred.shape)
+    y_pred = y_pred.reshape(-1, 100)
     y_pred_majority_vote = np.apply_along_axis(
         lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred
     )
     print(y_pred_majority_vote.shape)
-    print(y_pred_majority_vote.shape)
-    print(y_pred_majority_vote.shape)
-    print(y_pred_majority_vote.shape)
-    print(y_pred_majority_vote.shape)
-    print(y_pred_majority_vote.shape)
-    print(y_pred_majority_vote.shape)
-    return accuracy_score(y_test, y_pred_majority_vote)
+    return accuracy_score(y_test, y_pred_majority_vote.repeat(100))
 
 
 def evaluate_model(
@@ -156,8 +145,8 @@ def evaluate_model(
                 x_train, y_train, n
             )
 
-            train_dataset = NPYDataset(x_train_selected, y_train_selected)
-            test_dataset = NPYDataset(x_test, y_test)
+            train_dataset = NPYDatasetAll(x_train_selected, y_train_selected)
+            test_dataset = NPYDatasetAll(x_test, y_test)
             train_loader = DataLoader(
                 train_dataset,
                 batch_size=BATCH_SIZE,
@@ -202,7 +191,7 @@ def main() -> None:
     x_train, y_train, x_test, y_test = load_data()
 
     try:
-        model = SimCLRModuleRN()
+        model = SimCLRModuleRN(input_channels=12)
         model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
         model.to(device)
         model.inference = True

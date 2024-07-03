@@ -18,11 +18,11 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 CONFIG = {
-    "x_train_path": "simclr/x_train_40k.npy",
-    "y_train_path": "simclr/y_train_40k.npy",
-    "x_test_path": "stage_dylan/visulisation/npy/x_test.npy",
-    "y_test_path": "stage_dylan/visulisation/npy/y_test.npy",
-    "model_path": "simclr/LR/LR_model.pkl",
+    "x_train_path": "weights/x_train_40k.npy",
+    "y_train_path": "weights/y_train_40k.npy",
+    "x_test_path": "weights/x_test.npy",
+    "y_test_path": "weights/y_test.npy",
+    "model_path": "python/LR/LR_model.pkl",
     "n_values": [5, 10, 50, 100],
     "num_seeds": 20,
     "validation_split": 0.2,

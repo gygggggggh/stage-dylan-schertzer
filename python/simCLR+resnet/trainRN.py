@@ -9,14 +9,14 @@ from module_simCLR_RN import SimCLRModuleRN
 
 
 CONFIG = {
-    "x_train_path": "simclr/x_train_40k.npy",
-    "y_train_path": "simclr/y_train_40k.npy",
-    "x_test_path": "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/x_test.npy",
-    "y_test_path": "/home/sacha/Desktop/stage-dylan-schertzer/stage_dylan/visulisation/npy/y_test.npy",
-    "model_save_path": "simclr/simCLR+resnet/simCLR+RN.pth",
+    "x_train_path": "weights/x_train_40k.npy",
+    "y_train_path": "weights/y_train_40k.npy",
+    "x_test_path": "weights/x_test.npy",
+    "y_test_path": "weights/y_test.npy",
+    "model_save_path": "python/simCLR+resnet/simCLR+RN.pth",
     "batch_size": 32,
     "num_workers": 4,
-    "max_epochs": 200,
+    "max_epochs": 50,
     "val_split": 0.2,
 }
 

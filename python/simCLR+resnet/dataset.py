@@ -20,3 +20,16 @@ class NPYDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
+
+class NPYDatasetAll(Dataset):
+    def __init__(self, data: np.ndarray, targets: np.ndarray) -> None:
+        self.data = torch.from_numpy(data).float()
+        self.targets = torch.from_numpy(targets).float()
+        # Reshape data to (num_samples, 60, 12)
+        self.data = self.data.reshape(-1, 60, 12)
+
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
+        return self.data[index], self.targets[index]
+
+    def __len__(self):
+        return len(self.data)
