@@ -1,17 +1,16 @@
-import numpy as np
-import torch
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from torch.utils.data import DataLoader, TensorDataset
-from sklearn.model_selection import train_test_split
-from typing import Dict, Any, Tuple
 import logging
-from pathlib import Path
+from typing import Any, Dict, Tuple
+
+import numpy as np
+import pytorch_lightning as pl
+import torch
+from dataset import NPYDataset
 
 # Import your custom modules
 from module_simCLR_IT import SimCLRModuleIT
-from dataset import NPYDataset, NPYDatasetAll  
-
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader
 
 # Setup logging
 logging.basicConfig(
@@ -20,19 +19,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 CONFIG = {
-    "x_train_path": "weights/x_train_40k.npy",  
-    "y_train_path": "weights/y_train_40k.npy",  
+    "x_train_path": "weights/x_train_40k.npy",
+    "y_train_path": "weights/y_train_40k.npy",
     "x_test_path": "weights/x_test.npy",
     "y_test_path": "weights/y_test.npy",
     "model_save_path": "python/simCLR+InceptionTime/simCLR+IT.pth",
     "batch_size": 64,
     "num_workers": 8,
-    "max_epochs": 50,
+    "max_epochs": 5,
     "learning_rate": 0.002,
     "val_split": 0.2,
     "patience": 20,
 }
-
 
 
 def load_data(
@@ -107,10 +105,12 @@ def train_model(model, train_loader, val_loader, config):
         max_epochs=config["max_epochs"],
         callbacks=[checkpoint_callback, early_stop_callback],
         log_every_n_steps=1,
+        devices=1,
     )
 
     trainer.fit(model, train_loader, val_loader)
     return model
+
 
 def main(config: Dict[str, Any]) -> None:
     """Main training function."""
