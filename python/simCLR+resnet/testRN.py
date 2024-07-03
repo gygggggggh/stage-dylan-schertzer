@@ -191,7 +191,7 @@ def main() -> None:
     x_train, y_train, x_test, y_test = load_data()
 
     try:
-        model = SimCLRModuleRN(input_channels=12)
+        model = SimCLRModuleRNAll(input_channels=12)
         model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
         model.to(device)
         model.inference = True
