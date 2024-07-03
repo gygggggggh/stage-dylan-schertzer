@@ -25,12 +25,12 @@ def run_script(script_path: str) -> None:
 
 def main() -> None:
     scripts: List[str] = [
-        "simclr/simCLR+InceptionTime/trainIT.py",
-        "simclr/simCLR+InceptionTime/testIT.py",
-        "simclr/simCLR+resnet/trainRN.py",
-        "simclr/simCLR+resnet/testRN.py",
-        "simclr/LR/train_testLR.py",
-        "simclr/graphs.py"
+        "python/simCLR+InceptionTime/trainIT.py",
+        "python/simCLR+InceptionTime/testIT.py",
+        "python/simCLR+resnet/trainRN.py",
+        "python/simCLR+resnet/testRN.py",
+        "python/LR/train_testLR.py",
+        "python/graphs.py"
     ]
 
     # Run each script
