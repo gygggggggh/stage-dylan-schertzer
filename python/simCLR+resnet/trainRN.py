@@ -16,7 +16,7 @@ CONFIG = {
     "model_save_path": "python/simCLR+resnet/simCLR+RN.pth",
     "batch_size": 32,
     "num_workers": 4,
-    "max_epochs": 50,
+    "max_epochs": 10,
     "val_split": 0.2,
 }
 
@@ -33,10 +33,14 @@ def load_data(config: Dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndar
     except FileNotFoundError as e:
         raise FileNotFoundError(f"Error loading data: {e}")
 
-    print(f"x_train shape: {x_train.shape}")
-    print(f"y_train shape: {y_train.shape}")
-    print(f"x_test shape: {x_test.shape}")
-    print(f"y_test shape: {y_test.shape}")
+    print(f"x_train shape before transpose: {x_train.shape}")
+    print(f"x_test shape before transpose: {x_test.shape}")
+
+    # Assuming the data is in the format (batch_size, height, width, channels)
+    # and you need it to be in the format (batch_size, channels, height, width)
+
+    print(f"x_train shape after transpose: {x_train.shape}")
+    print(f"x_test shape after transpose: {x_test.shape}")
 
     return x_train, y_train, x_test, y_test
 

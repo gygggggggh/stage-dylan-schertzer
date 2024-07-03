@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 import logging
 from typing import List, Tuple
 from pathlib import Path
-
+from tqdm import tqdm
 
 # Configure logging
 logging.basicConfig(
@@ -51,8 +51,10 @@ def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> Tu
     selected_x = np.concatenate(selected_x)
     selected_y = np.concatenate(selected_y)
     
-    print(f"Shape after select_samples_per_class: x: {selected_x.shape}, y: {selected_y.shape}")
+    # Ensure the shape is correct for 72000 features
+    selected_x = selected_x.reshape(-1, 72000)
     return selected_x, selected_y
+
 
 def load_data(config: dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     try:
@@ -76,34 +78,38 @@ def fit_and_evaluate_model(
     majority: bool = False,
     validation_split: float = 0.2,
 ) -> Tuple[float, float]:
-    print(f"Shapes in fit_and_evaluate_model:")
-    print(f"x_train: {x_train.shape}, y_train: {y_train.shape}")
-    print(f"x_test: {x_test.shape}, y_test: {y_test.shape}")
-
-    # Reshape data
+    # Ensure the data is properly shaped
     x_train = x_train.reshape(x_train.shape[0], -1)
     x_test = x_test.reshape(x_test.shape[0], -1)
     
-    print(f"Shapes after reshaping:")
-    print(f"x_train: {x_train.shape}, y_train: {y_train.shape}")
-    print(f"x_test: {x_test.shape}, y_test: {y_test.shape}")
+    # Assert that we have 72000 features
+    assert x_train.shape[1] == 72000, f"Expected 72000 features in training data, got {x_train.shape[1]}"
+    assert x_test.shape[1] == 72000, f"Expected 72000 features in test data, got {x_test.shape[1]}"
+
+    # Ensure y_train matches x_train samples
+    assert y_train.shape[0] == x_train.shape[0], f"y_train shape ({y_train.shape}) doesn't match x_train shape ({x_train.shape})"
+    
+    # Ensure y_test matches x_test samples
+    assert y_test.shape[0] == x_test.shape[0], f"y_test shape ({y_test.shape}) doesn't match x_test shape ({x_test.shape})"
 
     x_train_split, x_val_split, y_train_split, y_val_split = train_test_split(
         x_train, y_train, test_size=validation_split, random_state=42
     )
+    
+    # Adjust the model to handle 72000 features
     model = LogisticRegression(max_iter=1000)
     model.fit(x_train_split, y_train_split)
     Path(model_path).parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, model_path)
 
-
+    # Use all available test data
     y_pred = model.predict(x_test)
     
     if majority:
-        # Reshape y_pred to match the original shape of x_test
-        y_pred = y_pred.reshape(x_test.shape[0], -1)
+        # Adjust majority vote calculation if needed
+        y_pred_reshaped = y_pred.reshape(x_test.shape[0], -1)
         y_pred_majority_vote = np.apply_along_axis(
-            lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred
+            lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred_reshaped
         )
         accuracy = accuracy_score(y_test, y_pred_majority_vote)
     else:
@@ -121,16 +127,13 @@ def evaluate_model(
     seeds: List[int],
     config: dict,
 ):
-    for n in n_values:
+    for n in tqdm(n_values, desc="Processing n_values"):
         accuracies, accuracies_majority = [], []
-        for seed in seeds:
+        for seed in tqdm(seeds, desc=f"Processing seeds for n={n}", leave=False):
             np.random.seed(seed)
             x_train_selected, y_train_selected = select_samples_per_class(
                 x_train, y_train, n
             )
-            print(f"Shapes before fit_and_evaluate_model:")
-            print(f"x_train_selected: {x_train_selected.shape}, y_train_selected: {y_train_selected.shape}")
-            print(f"x_test: {x_test.shape}, y_test: {y_test.shape}")
 
             accuracy = fit_and_evaluate_model(
                 x_train_selected,
