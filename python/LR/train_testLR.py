@@ -2,7 +2,6 @@ import numpy as np
 import joblib
 from cuml.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split
 import logging
 from typing import List, Tuple
 from pathlib import Path
