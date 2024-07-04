@@ -35,8 +35,9 @@ def get_random_seeds(num_seeds: int = 20, seed_range: int = int(1e9)) -> List[in
     return [np.random.randint(0, seed_range) for _ in range(num_seeds)]
 
 
-
-def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> Tuple[np.ndarray, np.ndarray]:
+def select_samples_per_class(
+    x: np.ndarray, y: np.ndarray, n_samples: int
+) -> Tuple[np.ndarray, np.ndarray]:
     unique_classes = np.unique(y)
     selected_x, selected_y = [], []
 
@@ -52,11 +53,11 @@ def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> Tu
 
     selected_x = np.concatenate(selected_x)
     selected_y = np.concatenate(selected_y)
-    
+
     selected_x = selected_x.reshape(-1, 7200000)
     selected_y = selected_y.repeat(72000)
     selected_y = np.expand_dims(selected_y, axis=0)
-    
+
     print(f"selected_x shape: {selected_x.shape}")
     print(f"selected_y shape: {selected_y.shape}")
     return selected_x, selected_y
@@ -69,7 +70,7 @@ def load_data(config: dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndar
         x_test = np.load(config["x_test_path"]).astype(np.float32)
         y_test = np.load(config["y_test_path"]).astype(np.float32)
         x_test = x_test.reshape(-1, 7200000)
-        y_test = np.repeat(y_test, 72000)  
+        y_test = np.repeat(y_test, 72000)
         y_test = y_test.reshape(x_test.shape[0], -1)
     except FileNotFoundError as e:
         logger.error(f"Error loading data: {e}")
@@ -85,7 +86,7 @@ def fit_and_evaluate_model(
     y_test: np.ndarray,
     model_path: str,
     majority: bool = False,
-    n_components: int = 100  # Number of components for PCA
+    n_components: int = 100,  # Number of components for PCA
 ) -> float:
     # Convert numpy arrays to cupy arrays
     x_train_gpu = cp.asarray(x_train)
@@ -112,14 +113,16 @@ def fit_and_evaluate_model(
 
     # Predict and calculate accuracy
     y_pred = model.predict(x_test_pca)
-    
+
     if majority:
         # Adjust majority vote calculation if needed
         y_pred_reshaped = y_pred.reshape(x_test_gpu.shape[0], -1)
         y_pred_majority_vote = cp.apply_along_axis(
             lambda x: cp.bincount(x).argmax(), axis=1, arr=y_pred_reshaped
         )
-        accuracy = accuracy_score(cp.asnumpy(y_test_gpu), cp.asnumpy(y_pred_majority_vote))
+        accuracy = accuracy_score(
+            cp.asnumpy(y_test_gpu), cp.asnumpy(y_pred_majority_vote)
+        )
     else:
         accuracy = accuracy_score(cp.asnumpy(y_test_gpu), cp.asnumpy(y_pred))
 
@@ -149,7 +152,9 @@ def evaluate_model(
                 x_test,
                 y_test,
                 config["model_path"],
-                n_components=config.get("n_components", 100)  # Default to 100 if not specified
+                n_components=config.get(
+                    "n_components", 100
+                ),  # Default to 100 if not specified
             )
             accuracies.append(accuracy)
 
@@ -160,7 +165,9 @@ def evaluate_model(
                 y_test,
                 config["model_path"],
                 majority=True,
-                n_components=config.get("n_components", 100)  # Default to 100 if not specified
+                n_components=config.get(
+                    "n_components", 100
+                ),  # Default to 100 if not specified
             )
             accuracies_majority.append(accuracy_majority)
 
