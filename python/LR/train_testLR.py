@@ -7,6 +7,8 @@ import logging
 from typing import List, Tuple
 from pathlib import Path
 from tqdm import tqdm
+from cuml.decomposition import PCA
+import cupy as cp
 
 # Configure logging
 logging.basicConfig(
@@ -26,6 +28,7 @@ CONFIG = {
     "n_values": [5, 10, 50, 100],
     "num_seeds": 20,
     "validation_split": 0.2,
+    "n_components": 100,
 }
 
 
@@ -51,8 +54,12 @@ def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> Tu
     selected_x = np.concatenate(selected_x)
     selected_y = np.concatenate(selected_y)
     
-    # Ensure the shape is correct for 72000 features
-    selected_x = selected_x.reshape(-1, 72000)
+    selected_x = selected_x.reshape(-1, 7200000)
+    selected_y = selected_y.repeat(72000)
+    selected_y = np.expand_dims(selected_y, axis=0)
+    
+    print(f"selected_x shape: {selected_x.shape}")
+    print(f"selected_y shape: {selected_y.shape}")
     return selected_x, selected_y
 
 
@@ -62,6 +69,9 @@ def load_data(config: dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndar
         y_train = np.load(config["y_train_path"])
         x_test = np.load(config["x_test_path"]).astype(np.float32)
         y_test = np.load(config["y_test_path"]).astype(np.float32)
+        x_test = x_test.reshape(-1, 7200000)
+        y_test = np.repeat(y_test, 72000)  
+        y_test = y_test.reshape(x_test.shape[0], -1)
     except FileNotFoundError as e:
         logger.error(f"Error loading data: {e}")
         raise
@@ -76,44 +86,43 @@ def fit_and_evaluate_model(
     y_test: np.ndarray,
     model_path: str,
     majority: bool = False,
-    validation_split: float = 0.2,
-) -> Tuple[float, float]:
-    # Ensure the data is properly shaped
-    x_train = x_train.reshape(x_train.shape[0], -1)
-    x_test = x_test.reshape(x_test.shape[0], -1)
-    
-    # Assert that we have 72000 features
-    assert x_train.shape[1] == 72000, f"Expected 72000 features in training data, got {x_train.shape[1]}"
-    assert x_test.shape[1] == 72000, f"Expected 72000 features in test data, got {x_test.shape[1]}"
+    n_components: int = 100  # Number of components for PCA
+) -> float:
+    # Convert numpy arrays to cupy arrays
+    x_train_gpu = cp.asarray(x_train)
+    y_train_gpu = cp.asarray(y_train)
+    x_test_gpu = cp.asarray(x_test)
+    y_test_gpu = cp.asarray(y_test)
 
-    # Ensure y_train matches x_train samples
-    assert y_train.shape[0] == x_train.shape[0], f"y_train shape ({y_train.shape}) doesn't match x_train shape ({x_train.shape})"
-    
-    # Ensure y_test matches x_test samples
-    assert y_test.shape[0] == x_test.shape[0], f"y_test shape ({y_test.shape}) doesn't match x_test shape ({x_test.shape})"
+    # Reshape the data
+    x_train_gpu = x_train_gpu.reshape(x_train_gpu.shape[0], -1)
+    x_test_gpu = x_test_gpu.reshape(x_test_gpu.shape[0], -1)
 
-    x_train_split, x_val_split, y_train_split, y_val_split = train_test_split(
-        x_train, y_train, test_size=validation_split, random_state=42
-    )
-    
-    # Adjust the model to handle 72000 features
+    # Apply PCA for dimensionality reduction
+    pca = PCA(n_components=n_components)
+    x_train_pca = pca.fit_transform(x_train_gpu)
+    x_test_pca = pca.transform(x_test_gpu)
+
+    # Train the model
     model = LogisticRegression(max_iter=1000)
-    model.fit(x_train_split, y_train_split)
-    Path(model_path).parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, model_path)
+    model.fit(x_train_pca, y_train_gpu)
 
-    # Use all available test data
-    y_pred = model.predict(x_test)
+    # Save the model (you might need to adjust this for GPU models)
+    Path(model_path).parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump((pca, model), model_path)
+
+    # Predict and calculate accuracy
+    y_pred = model.predict(x_test_pca)
     
     if majority:
         # Adjust majority vote calculation if needed
-        y_pred_reshaped = y_pred.reshape(x_test.shape[0], -1)
-        y_pred_majority_vote = np.apply_along_axis(
-            lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred_reshaped
+        y_pred_reshaped = y_pred.reshape(x_test_gpu.shape[0], -1)
+        y_pred_majority_vote = cp.apply_along_axis(
+            lambda x: cp.bincount(x).argmax(), axis=1, arr=y_pred_reshaped
         )
-        accuracy = accuracy_score(y_test, y_pred_majority_vote)
+        accuracy = accuracy_score(cp.asnumpy(y_test_gpu), cp.asnumpy(y_pred_majority_vote))
     else:
-        accuracy = accuracy_score(y_test, y_pred)
+        accuracy = accuracy_score(cp.asnumpy(y_test_gpu), cp.asnumpy(y_pred))
 
     return accuracy
 
@@ -141,6 +150,7 @@ def evaluate_model(
                 x_test,
                 y_test,
                 config["model_path"],
+                n_components=config.get("n_components", 100)  # Default to 100 if not specified
             )
             accuracies.append(accuracy)
 
@@ -151,6 +161,7 @@ def evaluate_model(
                 y_test,
                 config["model_path"],
                 majority=True,
+                n_components=config.get("n_components", 100)  # Default to 100 if not specified
             )
             accuracies_majority.append(accuracy_majority)
 
