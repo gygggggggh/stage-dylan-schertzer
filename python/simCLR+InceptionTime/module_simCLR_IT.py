@@ -27,7 +27,7 @@ class SimCLRModuleIT(pl.LightningModule):
             Flatten(out_features=512 * 4 * 1),
         )
         hidden_dim = 1024
-        self.projection_head = SimCLRProjectionHead(512 * 4, hidden_dim, 256)
+        self.projection_head = SimCLRProjectionHead(512 * 4, hidden_dim, 128)
         self.criterion = NTXentLoss()
     def forward(self, x):
         x = x.transpose(1, 2)
