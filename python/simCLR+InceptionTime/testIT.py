@@ -129,7 +129,7 @@ def train_and_evaluate_logistic_regression_with_majority_vote(
     y_pred_majority_vote = np.apply_along_axis(
         lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred
     )
-    return accuracy_score(y_test, y_pred_majority_vote)
+    return accuracy_score(y_test[::100], y_pred_majority_vote)
 
 def evaluate_for_seed(
     model: SimCLRModuleIT,
