@@ -14,8 +14,13 @@ class NPYDataset(Dataset):
         rand2 = torch.randint(0, self.data.shape[1], (1,)).item()
         if rand1 == rand2:
             rand2 = (rand2 + 1) % self.data.shape[1]
+        
+        noise1 = self.data[index, rand1] + torch.randn_like(self.data[index, rand1]) * 0.1
+        noise2 = self.data[index, rand2] + torch.randn_like(self.data[index, rand2]) * 0.1
+        
         # print(f"rand1: {rand1}, rand2: {rand2}")
-        return self.data[index, rand1], self.data[index, rand2]
+        # return self.data[index, rand1], self.data[index, rand2]
+        return noise1, noise2
 
 
     def __len__(self):

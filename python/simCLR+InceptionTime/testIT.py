@@ -1,3 +1,4 @@
+# %%
 import logging
 import numpy as np
 import torch
@@ -18,6 +19,34 @@ from dataset import NPYDatasetAll
 # Constants
 LOG_FILE = "testIT.log"
 MODEL_PATH = "python/simCLR+InceptionTime/simCLR+IT.pth"
+MODEL_PATH = "checkpoints/simclr-it-epoch=007.ckpt"
+MODEL_PATHS = "checkpoints"
+
+import os
+
+def list_model_files(model_paths: str) -> List[str]:
+    """
+    List all files in the given model paths folder.
+
+    Args:
+    model_paths (str): Path to the folder containing model files.
+
+    Returns:
+    List[str]: List of model file names.
+    """
+    try:
+        files = os.listdir(model_paths)
+        model_files = [file for file in files if os.path.isfile(os.path.join(model_paths, file))]
+        return model_files
+    except FileNotFoundError as e:
+        logging.error(f"Error listing files in {model_paths}: {e}")
+        return []
+
+# Example usage
+model_files = list_model_files(MODEL_PATHS)
+print(f"Model files: {sorted(model_files)}")
+# %%
+
 TRAIN_DATA_PATH = {"x": "weights/x_train_40k.npy", "y": "weights/y_train_40k.npy"}
 TEST_DATA_PATH = {
     "x": "weights/x_test.npy",
@@ -26,8 +55,9 @@ TEST_DATA_PATH = {
 
 # Configuration
 CONFIG = {
-    "num_seeds": 1,
-    "n_values": [5, 10, 50, 100],
+    "num_seeds": 20,
+    # "n_values": [5, 10, 50],
+    "n_values": [100],
     "batch_size": 512,
     "num_workers": 10,
 }
@@ -210,9 +240,13 @@ def main() -> None:
     seeds = get_random_seeds()
     x_train, y_train, x_test, y_test = load_data()
 
+
+    # for model_path in sorted(model_files)[::3]:
+        # logging.info(f"With {model_path} : ")
     try:
-        model = SimCLRModuleIT()
-        model.load_state_dict(torch.load(MODEL_PATH))
+        # model = SimCLRModuleIT.load_from_checkpoint(MODEL_PATHS + '/' + model_path)
+        model = SimCLRModuleIT.load_from_checkpoint(MODEL_PATH)
+        # model.load_state_dict(torch.load(MODEL_PATHS + '/' + model_path))
         model = model.to(device)  # Move model to device
         model.eval()  # Set model to evaluation mode
         model.inference = True
@@ -224,7 +258,6 @@ def main() -> None:
         return
 
     evaluate_model(model, x_train, y_train, x_test, y_test, CONFIG["n_values"], seeds, device)
-    
 
 if __name__ == "__main__":
     main()
