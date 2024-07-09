@@ -12,3 +12,4 @@ data/
 *.pkl
 *.ckpt
 *.pdf
+*.pyc
