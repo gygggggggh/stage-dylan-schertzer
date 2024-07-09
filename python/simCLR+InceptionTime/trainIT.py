@@ -6,11 +6,12 @@ import pytorch_lightning as pl
 import torch
 from dataset import NPYDataset
 
-# Import your custom modules
 from module_simCLR_IT import SimCLRModuleIT
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
+
+torch.set_float32_matmul_precision('high')
 
 # Setup logging
 logging.basicConfig(
@@ -24,12 +25,11 @@ CONFIG = {
     "x_test_path": "weights/x_test.npy",
     "y_test_path": "weights/y_test.npy",
     "model_save_path": "python/simCLR+InceptionTime/simCLR+IT.pth",
-    "batch_size": 64,
+    "batch_size": 1024,
     "num_workers": 8,
-    "max_epochs": 5,
-    "learning_rate": 0.002,
-    "val_split": 0.2,
-    "patience": 20,
+    "max_epochs": 200,
+    "learning_rate": 0.02,
+    "val_split": 0.1
 }
 
 
@@ -40,16 +40,10 @@ def load_data(
     try:
         x_train = np.load(config["x_train_path"])
         y_train = np.load(config["y_train_path"])
-        x_test = np.load(config["x_test_path"])
-        y_test = np.load(config["y_test_path"])
     except FileNotFoundError as e:
-        logger.error(f"Error loading data: {e}")
-        raise
-
-    logger.info(
-        f"Data shapes: x_train {x_train.shape}, y_train {y_train.shape}, x_test {x_test.shape}, y_test {y_test.shape}"
-    )
-    return x_train, y_train, x_test, y_test
+        raise FileNotFoundError(f"Error loading data: {e}")
+        
+    return x_train, y_train
 
 
 def create_data_loaders(
@@ -57,53 +51,42 @@ def create_data_loaders(
     y_train: np.ndarray,
     x_val: np.ndarray,
     y_val: np.ndarray,
-    x_test: np.ndarray,
-    y_test: np.ndarray,
     config: Dict[str, Any],
 ) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """Create data loaders for training, validation, and testing."""
     train_dataset = NPYDataset(x_train, y_train)
     val_dataset = NPYDataset(x_val, y_val)
-    test_dataset = NPYDataset(x_test, y_test)
 
     train_loader = DataLoader(
         train_dataset,
         batch_size=config["batch_size"],
         shuffle=True,
         num_workers=config["num_workers"],
+        drop_last=True
     )
     val_loader = DataLoader(
         val_dataset,
         batch_size=config["batch_size"],
         shuffle=False,
         num_workers=config["num_workers"],
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=config["batch_size"],
-        shuffle=False,
-        num_workers=config["num_workers"],
+        drop_last=True
     )
 
-    return train_loader, val_loader, test_loader
+    return train_loader, val_loader
 
 
 def train_model(model, train_loader, val_loader, config):
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints",
-        filename="simclr-it-{epoch:02d}-{val_loss:.2f}",
-        save_top_k=3,
+        filename="simclr-it-{epoch:02d}",
+        save_top_k=200,
         monitor="val_loss",
         mode="min",
     )
 
-    early_stop_callback = EarlyStopping(
-        monitor="val_loss", patience=config["patience"], verbose=True, mode="min"
-    )
-
     trainer = pl.Trainer(
         max_epochs=config["max_epochs"],
-        callbacks=[checkpoint_callback, early_stop_callback],
+        callbacks=[checkpoint_callback],
         log_every_n_steps=1,
         devices=1,
     )
@@ -113,37 +96,21 @@ def train_model(model, train_loader, val_loader, config):
 
 
 def main(config: Dict[str, Any]) -> None:
-    """Main training function."""
-    # Set random seeds for reproducibility
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
     pl.seed_everything(42)
 
-    # Load the data
-    x_train, y_train, x_test, y_test = load_data(config)
-
-    # Split the training data into training and validation sets
+    x_train, y_train = load_data(config)
     x_train, x_val, y_train, y_val = train_test_split(
         x_train, y_train, test_size=config["val_split"], random_state=42
     )
-
-    # Create the data loaders
-    train_loader, val_loader, test_loader = create_data_loaders(
-        x_train, y_train, x_val, y_val, x_test, y_test, config
+    train_loader, val_loader = create_data_loaders(
+        x_train, y_train, x_val, y_val, config
     )
 
-    # Create the SimCLR model
-    model = SimCLRModuleIT(learning_rate=config["learning_rate"])
+    model = SimCLRModuleIT(learning_rate=config["learning_rate"]).to(device)
 
-    # Train the model
-    trained_model = train_model(model, train_loader, val_loader, config)
-
-    # Save the model
-    torch.save(trained_model.state_dict(), config["model_save_path"])
-    logger.info(f"Model saved to {config['model_save_path']}")
-
-    # Optionally, you can add an evaluation step here
-    # trained_model.eval()
-    # evaluate_model(trained_model, test_loader)
-
+    train_model(model, train_loader, val_loader, config)
 
 if __name__ == "__main__":
     main(CONFIG)
