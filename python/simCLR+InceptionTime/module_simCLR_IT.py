@@ -15,20 +15,19 @@ class Flatten(nn.Module):
         return x.view(-1, self.output_dim)
 
 class SimCLRModuleIT(pl.LightningModule):
-    def __init__(self, learning_rate=0.002):
+    def __init__(self, learning_rate=0.1):
         super().__init__()
         self.save_hyperparameters()
         self.backbone = nn.Sequential(
-            InceptionBlock(in_channels=12, n_filters=64, kernel_sizes=[5, 11, 23], bottleneck_channels=32, use_residual=True, activation=nn.ReLU()),
-            InceptionBlock(in_channels=64 * 4, n_filters=128, kernel_sizes=[5, 11, 23], bottleneck_channels=64, use_residual=True, activation=nn.ReLU()),
-            InceptionBlock(in_channels=128 * 4, n_filters=256, kernel_sizes=[5, 11, 23], bottleneck_channels=64, use_residual=True, activation=nn.ReLU()),
-            InceptionBlock(in_channels=256 * 4, n_filters=512, kernel_sizes=[5, 11, 23], bottleneck_channels=128, use_residual=True, activation=nn.ReLU()),
+            InceptionBlock(in_channels=12, n_filters=256, kernel_sizes=[9, 19, 39], bottleneck_channels=16, use_residual=True, activation=nn.ReLU()),
+            InceptionBlock(in_channels=256 * 4, n_filters=256, kernel_sizes=[9, 19, 39], bottleneck_channels=16, use_residual=True, activation=nn.ReLU()),
             nn.AdaptiveAvgPool1d(output_size=1),
-            Flatten(out_features=512 * 4 * 1),
+            Flatten(out_features=256 * 4 * 1),
         )
         hidden_dim = 1024
-        self.projection_head = SimCLRProjectionHead(512 * 4, hidden_dim, 128)
+        self.projection_head = SimCLRProjectionHead(256 * 4, hidden_dim, 128)
         self.criterion = NTXentLoss()
+        
     def forward(self, x):
         x = x.transpose(1, 2)
         h = self.backbone(x)
@@ -52,8 +51,13 @@ class SimCLRModuleIT(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.learning_rate, weight_decay=1e-4)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
+        optimizer = torch.optim.SGD(
+            self.parameters(),
+            lr=self.hparams.learning_rate,
+            momentum=0.9,
+            weight_decay=5e-4
+        )
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
         return [optimizer], [scheduler]
 
     def get_h(self, x):
