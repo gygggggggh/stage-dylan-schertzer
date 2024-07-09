@@ -1,51 +1,21 @@
 # %%
 import logging
+import os
+
 import numpy as np
-import torch
 import pytorch_lightning as pl
+import torch
 from cuml.linear_model import LogisticRegression
+from dataset import NPYDatasetAll
+from module_simCLR_IT import SimCLRModuleIT
 from sklearn.metrics import accuracy_score
 from torch.utils.data import DataLoader
-from typing import List, Tuple
 from tqdm import tqdm
-import gc
-
-from module_simCLR_IT import SimCLRModuleIT
-from dataset import NPYDatasetAll
-
-
-
 
 # Constants
 LOG_FILE = "testIT.log"
-MODEL_PATH = "python/simCLR+InceptionTime/simCLR+IT.pth"
-MODEL_PATH = "checkpoints/simclr-it-epoch=007.ckpt"
+MODEL_PATH = "checkpoints/simclr-it-epoch=145.ckpt"
 MODEL_PATHS = "checkpoints"
-
-import os
-
-def list_model_files(model_paths: str) -> List[str]:
-    """
-    List all files in the given model paths folder.
-
-    Args:
-    model_paths (str): Path to the folder containing model files.
-
-    Returns:
-    List[str]: List of model file names.
-    """
-    try:
-        files = os.listdir(model_paths)
-        model_files = [file for file in files if os.path.isfile(os.path.join(model_paths, file))]
-        return model_files
-    except FileNotFoundError as e:
-        logging.error(f"Error listing files in {model_paths}: {e}")
-        return []
-
-# Example usage
-model_files = list_model_files(MODEL_PATHS)
-print(f"Model files: {sorted(model_files)}")
-# %%
 
 TRAIN_DATA_PATH = {"x": "weights/x_train_40k.npy", "y": "weights/y_train_40k.npy"}
 TEST_DATA_PATH = {
@@ -53,13 +23,18 @@ TEST_DATA_PATH = {
     "y": "weights/y_test.npy",
 }
 
-# Configuration
-CONFIG = {
+CONFIG_SINGLE = {
     "num_seeds": 20,
-    # "n_values": [5, 10, 50],
-    "n_values": [100],
-    "batch_size": 512,
-    "num_workers": 10,
+    "n_values": [5, 10, 50, 100],
+    "batch_size": 1024,
+    "num_workers": 8,
+}
+
+CONFIG_MULTIPLE = {
+    "num_seeds": 4,
+    "n_values": [10],
+    "batch_size": 1024,
+    "num_workers": 8,
 }
 
 logging.basicConfig(
@@ -69,16 +44,20 @@ logging.basicConfig(
 )
 logging.info("simCLR+InceptionTime")
 
+# %%
+def list_model_files(model_paths, suffix):
+    try:
+        files = os.listdir(model_paths)
+        model_files = [file for file in files if os.path.isfile(os.path.join(model_paths, file)) and file.endswith(suffix)]
+        return sorted(model_files)
+    except FileNotFoundError as e:
+        logging.error(f"Error listing files in {model_paths}: {e}")
+        return []
 
-def get_random_seeds(
-    num_seeds: int = CONFIG["num_seeds"], seed_range: int = int(1e9)
-) -> List[int]:
+def get_random_seeds(num_seeds=20, seed_range=int(1e9)):
     return [np.random.randint(0, seed_range) for _ in range(num_seeds)]
 
-
-def select_samples_per_class(
-    x: np.ndarray, y: np.ndarray, n_samples: int
-) -> Tuple[np.ndarray, np.ndarray]:
+def select_samples_per_class(x, y, n_samples):
     unique_classes = np.unique(y)
     selected_x, selected_y = [], []
 
@@ -99,8 +78,7 @@ def select_samples_per_class(
     
     return selected_x, selected_y
 
-
-def load_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def load_data():
     try:
         x_train = np.load(TRAIN_DATA_PATH["x"])
         y_train = np.load(TRAIN_DATA_PATH["y"])
@@ -117,10 +95,7 @@ def load_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         logging.error(f"Error loading data: {e}")
         raise
 
-
-def extract_features(
-    model: SimCLRModuleIT, loader: DataLoader, device: torch.device
-) -> np.ndarray:
+def extract_features(model, loader, device):
     features = []
     model.eval()
     with torch.no_grad():
@@ -132,97 +107,61 @@ def extract_features(
             torch.cuda.empty_cache()
     return np.concatenate(features)
 
-
-def train_and_evaluate_logistic_regression(
-    H_train: np.ndarray, y_train: np.ndarray, H_test: np.ndarray, y_test: np.ndarray
-) -> float:
-    clf = LogisticRegression(max_iter=1000)
-    clf.fit(H_train, y_train)
-    y_pred = clf.predict(H_test)
-    return accuracy_score(y_test, y_pred)
-
-
-def train_and_evaluate_logistic_regression_with_majority_vote(
-    H_train: np.ndarray, y_train: np.ndarray, H_test: np.ndarray, y_test: np.ndarray
-) -> float:
-    clf = LogisticRegression(max_iter=1000)
+def train_and_evaluate_logistic_regression_with_majority_vote(H_train, y_train, H_test, y_test):
+    clf = LogisticRegression(max_iter=5000)
     clf.fit(H_train, y_train)
     
-    # Process test data in batches
-    batch_size = 512
-    y_pred = []
-    for i in range(0, len(H_test), batch_size):
-        batch = H_test[i:i+batch_size]
-        y_pred.extend(clf.predict(batch))
+    y_pred = clf.predict(H_test)
+    
+    acc = accuracy_score(y_test, y_pred)
     
     y_pred = np.array(y_pred).reshape(-1, 100)
     y_pred_majority_vote = np.apply_along_axis(
         lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred
     )
-    return accuracy_score(y_test[::100], y_pred_majority_vote)
+    accuracy_majority = accuracy_score(y_test[::100], y_pred_majority_vote)
+    
+    return acc, accuracy_majority
 
-def evaluate_for_seed(
-    model: SimCLRModuleIT,
-    x_train: np.ndarray,
-    y_train: np.ndarray,
-    x_test: np.ndarray,
-    y_test: np.ndarray,
-    n: int,
-    seed: int,
-    device: torch.device = torch.device("cuda"),
-) -> Tuple[float, float]:
+def evaluate_for_seed(model, x_train, y_train, x_test, y_test, n, seed, config, device=torch.device("cuda")):
     torch.manual_seed(seed)
     pl.seed_everything(seed)
 
     x_train_selected, y_train_selected = select_samples_per_class(x_train, y_train, n)
-
     train_dataset = NPYDatasetAll(x_train_selected, y_train_selected)
     train_loader = DataLoader(
         train_dataset,
-        batch_size=CONFIG["batch_size"],
+        batch_size=config["batch_size"],
         shuffle=False,
-        num_workers=CONFIG["num_workers"],
+        num_workers=config["num_workers"],
+        drop_last=False,
     )
+
     test_dataset = NPYDatasetAll(x_test, y_test)
     test_loader = DataLoader(
         test_dataset,
-        batch_size=CONFIG["batch_size"],
+        batch_size=config["batch_size"],
         shuffle=False,
-        num_workers=CONFIG["num_workers"],
+        num_workers=config["num_workers"],
         drop_last=False,
     )
 
     H_train = extract_features(model, train_loader, device)
     H_test = extract_features(model, test_loader, device)
 
-    accuracy = train_and_evaluate_logistic_regression(
+    accuracy, accuracy_majority = train_and_evaluate_logistic_regression_with_majority_vote(
         H_train, y_train_selected, H_test, y_test
     )
-    accuracy_majority = train_and_evaluate_logistic_regression_with_majority_vote(
-        H_train, y_train_selected, H_test, y_test
-    )
-
-    del H_train, H_test
-    gc.collect()
 
     return accuracy, accuracy_majority
 
-def evaluate_model(
-    model: SimCLRModuleIT,
-    x_train: np.ndarray,
-    y_train: np.ndarray,
-    x_test: np.ndarray,
-    y_test: np.ndarray,
-    n_values: List[int],
-    seeds: List[int],
-    device: torch.device = torch.device("cuda"),
-) -> None:
-    for n in n_values:
+def evaluate_model(model, x_train, y_train, x_test, y_test, config, seeds, device=torch.device("cuda")):
+    for n in config['n_values']:
         accuracies = []
         accuracies_majority = []
         for seed in tqdm(seeds, desc=f"Evaluating n={n}"):
             accuracy, accuracy_majority = evaluate_for_seed(
-                model, x_train, y_train, x_test, y_test, n, seed
+                model, x_train, y_train, x_test, y_test, n, seed, config, device
             )
             accuracies.append(accuracy)
             accuracies_majority.append(accuracy_majority)
@@ -232,34 +171,34 @@ def evaluate_model(
             f"Majority Vote Accuracy for n={n}: {np.mean(accuracies_majority):.4f}"
         )
 
-        gc.collect()
-
-
-def main() -> None:
+def main(evaluate_all_checkpoints=False):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     seeds = get_random_seeds()
     x_train, y_train, x_test, y_test = load_data()
 
+    config = CONFIG_MULTIPLE if evaluate_all_checkpoints else CONFIG_SINGLE
 
-    # for model_path in sorted(model_files)[::3]:
-        # logging.info(f"With {model_path} : ")
-    try:
-        # model = SimCLRModuleIT.load_from_checkpoint(MODEL_PATHS + '/' + model_path)
-        model = SimCLRModuleIT.load_from_checkpoint(MODEL_PATH)
-        # model.load_state_dict(torch.load(MODEL_PATHS + '/' + model_path))
-        model = model.to(device)  # Move model to device
-        model.eval()  # Set model to evaluation mode
-        model.inference = True
-    except FileNotFoundError:
-        logging.error(f"Model file not found: {MODEL_PATH}")
-        return
-    except Exception as e:
-        logging.error(f"Error loading model: {e}")
-        return
+    def load_and_evaluate_model(model_path):
+        try:
+            model = SimCLRModuleIT.load_from_checkpoint(model_path)
+            model = model.to(device)  # Move model to device
+            model.eval()  # Set model to evaluation mode
+            model.inference = True
+            logging.info(f"Evaluating with {model_path} : ")
+            evaluate_model(model, x_train, y_train, x_test, y_test, config, seeds, device)
+        except FileNotFoundError:
+            logging.error(f"Model file not found: {model_path}")
+        except Exception as e:
+            logging.error(f"Error loading model: {e}")
 
-    evaluate_model(model, x_train, y_train, x_test, y_test, CONFIG["n_values"], seeds, device)
+    if evaluate_all_checkpoints:
+        model_files = list_model_files(MODEL_PATHS, ".ckpt")
+        for model_path in model_files:
+            if model_path.endswith('.ckpt'):
+                load_and_evaluate_model(os.path.join(MODEL_PATHS, model_path))
+    else:
+        load_and_evaluate_model(MODEL_PATH)
 
 if __name__ == "__main__":
     main()
-    print("Done")
-    print(f"Check the {LOG_FILE} file for the results.")
+    print("Done.")
