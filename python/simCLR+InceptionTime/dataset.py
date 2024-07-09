@@ -1,7 +1,7 @@
 # %%
+import numpy as np
 import torch
 from torch.utils.data import Dataset
-import numpy as np
 
 
 class NPYDataset(Dataset):
@@ -10,21 +10,17 @@ class NPYDataset(Dataset):
         self.targets = torch.from_numpy(targets).float()
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
-        rand1 = torch.randint(0, self.data.shape[1], (1,)).item()
-        rand2 = torch.randint(0, self.data.shape[1], (1,)).item()
-        if rand1 == rand2:
-            rand2 = (rand2 + 1) % self.data.shape[1]
-        
-        noise1 = self.data[index, rand1] + torch.randn_like(self.data[index, rand1]) * 0.1
-        noise2 = self.data[index, rand2] + torch.randn_like(self.data[index, rand2]) * 0.1
-        
-        # print(f"rand1: {rand1}, rand2: {rand2}")
-        # return self.data[index, rand1], self.data[index, rand2]
-        return noise1, noise2
+        indices = torch.argsort(torch.rand(self.data.shape[1]))[:2]
+        x_filtered = self.data[index, indices]
 
+        noise = torch.randn_like(x_filtered) * 0.1
+        x_noisy = x_filtered + noise
+
+        return [e for e in x_noisy]
 
     def __len__(self):
         return len(self.data)
+
 
 class NPYDatasetAll(Dataset):
     def __init__(self, data: np.ndarray, targets: np.ndarray) -> None:
@@ -32,7 +28,7 @@ class NPYDatasetAll(Dataset):
         self.targets = torch.from_numpy(targets).float()
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
-        self.data = self.data.reshape(-1,60,12)
+        self.data = self.data.reshape(-1, 60, 12)
         return self.data[index], self.targets[index]
 
     def __len__(self):
