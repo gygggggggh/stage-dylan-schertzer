@@ -7,51 +7,61 @@ def parse_log(filename):
     with open(filename, 'r') as file:
         for line in file:
             if "The Accuracy for n=" in line:
-                n = int(line.split('=')[1].split(':')[0])
-                acc = round(float(line.split('=')[1].split(':')[1].strip())*100, 0)
+                n, acc = extract_data(line, "The Accuracy for n=")
                 data.append((filename, n, acc))
-            if "Majority Vote Accuracy for n=" in line:
-                n_majority = int(line.split('=')[1].split(':')[0])
-                acc_majority = round(float(line.split('=')[1].split(':')[1].strip())*100, 0)
-                majority_data.append((filename, n_majority, acc_majority))
+            elif "Majority Vote Accuracy for n=" in line:
+                n, acc = extract_data(line, "Majority Vote Accuracy for n=")
+                majority_data.append((filename, n, acc))
     return data, majority_data
 
+def extract_data(line, prefix):
+    parts = line.split('=')[1].split(':')
+    n = int(parts[0])
+    acc = round(float(parts[1].strip()) * 100, 0)
+    return n, acc
 
-# Parse the log files
-data_LR, majority_data_LR = parse_log('testLR.log')
-data_RN, majority_data_RN = parse_log('testRN.log')
-data_IT, majority_data_IT = parse_log('testIT.log')
+def parse_all_logs(filenames):
+    all_data = []
+    all_majority_data = []
+    for filename in filenames:
+        data, majority_data = parse_log(filename)
+        all_data.extend(data)
+        all_majority_data.extend(majority_data)
+    return all_data, all_majority_data
 
-# Combine the data
-data = data_LR + data_RN + data_IT
-majority_data = majority_data_LR + majority_data_RN + majority_data_IT
+def create_dataframes(data, majority_data):
+    df = pd.DataFrame(data, columns=['Model', 'n', 'Accuracy'])
+    df_majority = pd.DataFrame(majority_data, columns=['Model', 'n', 'Accuracy'])
+    return df, df_majority
 
-# Create DataFrames
-df = pd.DataFrame(data, columns=['Model', 'n', 'Accuracy'])
-df_majority = pd.DataFrame(majority_data, columns=['Model', 'n', 'Accuracy'])
+def create_pivot_tables(df, df_majority):
+    table = pd.pivot_table(df, values='Accuracy', index='n', columns='Model')
+    table_majority = pd.pivot_table(df_majority, values='Accuracy', index='n', columns='Model')
+    return table, table_majority
 
-# Create pivot tables
-table = pd.pivot_table(df, values='Accuracy', index='n', columns='Model')
-table_majority = pd.pivot_table(df_majority, values='Accuracy', index='n', columns='Model')
-
-# Plot the tables
-fig, axs = plt.subplots(1, 2, figsize=(15, 8))
-
-# Function to plot a table
 def plot_table(ax, table, title):
     ax.axis('tight')
     ax.axis('off')
-    table_plot = ax.table(cellText=table.values, colLabels=table.columns, rowLabels=table.index, cellLoc='center', loc='center')
+    table_plot = ax.table(cellText=table.values, colLabels=table.columns, 
+                          rowLabels=table.index, cellLoc='center', loc='center')
     table_plot.auto_set_font_size(False)
     table_plot.set_fontsize(12)
     table_plot.scale(1.2, 1.2)
     ax.set_title(title, fontsize=14)
 
-# Plot the accuracy table
-plot_table(axs[0], table, 'Accuracy')
+def plot_results(table, table_majority):
+    fig, axs = plt.subplots(1, 2, figsize=(15, 8))
+    plot_table(axs[0], table, 'Accuracy')
+    plot_table(axs[1], table_majority, 'Majority Vote Accuracy')
+    plt.tight_layout()
+    plt.show()
 
-# Plot the majority vote accuracy table
-plot_table(axs[1], table_majority, 'Majority Vote Accuracy')
+def main():
+    filenames = ['testLR.log', 'testRN.log', 'testIT.log']
+    data, majority_data = parse_all_logs(filenames)
+    df, df_majority = create_dataframes(data, majority_data)
+    table, table_majority = create_pivot_tables(df, df_majority)
+    plot_results(table, table_majority)
 
-plt.tight_layout()
-plt.show()
+if __name__ == "__main__":
+    main()

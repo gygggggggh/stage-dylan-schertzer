@@ -16,6 +16,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 # Configuration
 CONFIG = {
     "x_train_path": "data/x_train_40k.npy",
@@ -25,9 +26,8 @@ CONFIG = {
     "model_path": "python/LR/LR_model.pkl",
     "n_values": [5, 10, 50, 100],
     "num_seeds": 20,
-    "validation_split": 0.2,
-    "n_components": 100,
 }
+
 
 
 def get_random_seeds(num_seeds: int = 20, seed_range: int = int(1e9)) -> List[int]:
@@ -125,10 +125,9 @@ def fit_and_evaluate_model(
             cp.asnumpy(y_test_gpu[::100]), cp.asnumpy(y_pred_majority_vote)
         )
     else:
-        accuracy = accuracy_score(cp.asnumpy(y_test_gpu), cp.asnumpy(y_pred))
+        accuracy = accuracy_score(y_test.ravel(), y_pred)
 
     return accuracy
-
 
 def evaluate_model(
     x_train: np.ndarray,
@@ -153,9 +152,6 @@ def evaluate_model(
                 x_test,
                 y_test,
                 config["model_path"],
-                n_components=config.get(
-                    "n_components", 100
-                ),  # Default to 100 if not specified
             )
             accuracies.append(accuracy)
 
@@ -166,9 +162,6 @@ def evaluate_model(
                 y_test,
                 config["model_path"],
                 majority=True,
-                n_components=config.get(
-                    "n_components", 100
-                ),  # Default to 100 if not specified
             )
             accuracies_majority.append(accuracy_majority)
 
@@ -184,7 +177,6 @@ def main(config: dict):
     seeds = get_random_seeds(config["num_seeds"])
     evaluate_model(x_train, y_train, x_test, y_test, config["n_values"], seeds, config)
     logger.info("Evaluation complete")
-
 
 if __name__ == "__main__":
     main(CONFIG)
