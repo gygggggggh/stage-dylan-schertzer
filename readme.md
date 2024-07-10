@@ -4,11 +4,11 @@ This project implements SimCLR (Simple Framework for Contrastive Learning of Vis
 
 ## Project Structure
 
-- `weights/`: Data directory
-- `graphs.py`: Performance visualization
+- `data/`: Data directory
+- `graph.py`: Performance visualization
 - `main.py`: Main script for training and testing
-- `simclr+resnet/`: SimCLR with ResNet backbone
-- `simclr+inceptiontime/`: SimCLR with InceptionTime backbone
+- `simCLR_resnet/`: SimCLR with ResNet backbone
+- `simclr_IT/`: SimCLR with InceptionTime backbone
 - `LR/`: Logistic Regression implementation
  
 ## Key Components
@@ -26,15 +26,15 @@ This project implements SimCLR (Simple Framework for Contrastive Learning of Vis
 ## Setup and Execution
 
 1. Install dependencies: PyTorch, PyTorch Lightning, NumPy, scikit-learn, cuML, tqdm, matplotlib, pandas
-2. Place data in `weights/` directory
+2. Place data in `data/` directory
 3. Run: `python main.py`
 
 ## Configuration
 
 Key parameters (adjust in respective scripts):
-- Batch size: 32
-- Max epochs: 50
-- Learning rate: 0.002
+- Batch size: 1024
+- Max epochs: 100
+- Learning rate: 0.02
 - N values for few-shot learning: [5, 10, 50, 100]
 
 ## Evaluation
@@ -50,7 +50,7 @@ Key parameters (adjust in respective scripts):
 
 ## Results
 
-Check log files for accuracy results. Use `graphs.py` for performance visualizations.
+Check log files for accuracy results. Use `graph.py` for performance visualizations.
 
 ## Note
 
