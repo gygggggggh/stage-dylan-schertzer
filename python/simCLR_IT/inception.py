@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 
 
-
 def correct_sizes(sizes: list) -> list:
     corrected_sizes = [s if s % 2 != 0 else s - 1 for s in sizes]
     return corrected_sizes
@@ -13,7 +12,7 @@ def pass_through(X: torch.Tensor) -> torch.Tensor:
 
 
 class Inception(nn.Module):
-    def __init__( 
+    def __init__(
         self,
         in_channels,
         n_filters,

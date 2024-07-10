@@ -6,7 +6,6 @@ import numpy as np
 from cuml.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from tqdm import tqdm
-from tqdm import tqdm
 
 # Configure logging
 logging.basicConfig(
@@ -27,7 +26,6 @@ CONFIG = {
     "n_values": [5, 10, 50, 100],
     "num_seeds": 20,
 }
-
 
 
 def get_random_seeds(num_seeds: int = 20, seed_range: int = int(1e9)) -> List[int]:
@@ -129,6 +127,7 @@ def fit_and_evaluate_model(
 
     return accuracy
 
+
 def evaluate_model(
     x_train: np.ndarray,
     y_train: np.ndarray,
@@ -177,6 +176,7 @@ def main(config: dict):
     seeds = get_random_seeds(config["num_seeds"])
     evaluate_model(x_train, y_train, x_test, y_test, config["n_values"], seeds, config)
     logger.info("Evaluation complete")
+
 
 if __name__ == "__main__":
     main(CONFIG)
