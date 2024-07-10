@@ -8,7 +8,7 @@ from tsai.models.ResNet import ResNet as tsResNet
 
 class SimCLRModuleRNAll(pl.LightningModule):
     def __init__(
-        self, input_channels=12, hidden_dim=512, output_dim=128, learning_rate=0.1
+        self, input_channels=12, hidden_dim=1024, output_dim=128, learning_rate=0.02
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -63,7 +63,7 @@ class SimCLRModuleRNAll(pl.LightningModule):
 
 class SimCLRModuleRN(pl.LightningModule):
     def __init__(
-        self, input_channels=12, hidden_dim=512, output_dim=128, learning_rate=0.1
+        self, input_channels=12, hidden_dim=1024, output_dim=128, learning_rate=0.02
     ):
         super().__init__()
         self.save_hyperparameters()

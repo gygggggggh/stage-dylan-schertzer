@@ -1,5 +1,9 @@
-from python.shared_test import main, setup_logging
-from python.simCLR_resnet.module_simCLR_RN import SimCLRModuleRNAll
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from shared_test import main, setup_logging
+from simCLR_resnet.module_simCLR_RN import SimCLRModuleRNAll
 
 # Constants
 LOG_FILE = "testRN.log"
