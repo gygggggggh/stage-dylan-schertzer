@@ -1,13 +1,12 @@
-import numpy as np
-import joblib
-from cuml.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
 import logging
 from typing import List, Tuple
-from pathlib import Path
-from tqdm import tqdm
-from cuml.decomposition import PCA
+
 import cupy as cp
+import numpy as np
+from cuml.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from tqdm import tqdm
+from tqdm import tqdm
 
 # Configure logging
 logging.basicConfig(
@@ -19,10 +18,10 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 CONFIG = {
-    "x_train_path": "weights/x_train_40k.npy",
-    "y_train_path": "weights/y_train_40k.npy",
-    "x_test_path": "weights/x_test.npy",
-    "y_test_path": "weights/y_test.npy",
+    "x_train_path": "data/x_train_40k.npy",
+    "y_train_path": "data/y_train_40k.npy",
+    "x_test_path": "data/x_test.npy",
+    "y_test_path": "data/y_test.npy",
     "model_path": "python/LR/LR_model.pkl",
     "n_values": [5, 10, 50, 100],
     "num_seeds": 20,
@@ -35,8 +34,9 @@ def get_random_seeds(num_seeds: int = 20, seed_range: int = int(1e9)) -> List[in
     return [np.random.randint(0, seed_range) for _ in range(num_seeds)]
 
 
-
-def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> Tuple[np.ndarray, np.ndarray]:
+def select_samples_per_class(
+    x: np.ndarray, y: np.ndarray, n_samples: int
+) -> Tuple[np.ndarray, np.ndarray]:
     unique_classes = np.unique(y)
     selected_x, selected_y = [], []
 
@@ -52,11 +52,11 @@ def select_samples_per_class(x: np.ndarray, y: np.ndarray, n_samples: int) -> Tu
 
     selected_x = np.concatenate(selected_x)
     selected_y = np.concatenate(selected_y)
-    
+
     # selected_x = selected_x.reshape(-1, 7200000)
     # selected_y = selected_y.repeat(72000)
     # selected_y = np.expand_dims(selected_y, axis=0)
-    
+
     print(f"selected_x shape: {selected_x.shape}")
     print(f"selected_y shape: {selected_y.shape}")
     return selected_x, selected_y
@@ -69,7 +69,7 @@ def load_data(config: dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndar
         x_test = np.load(config["x_test_path"]).astype(np.float32)
         y_test = np.load(config["y_test_path"]).astype(np.float32)
         # x_test = x_test.reshape(-1, 7200000)
-        # y_test = np.repeat(y_test, 72000)  
+        # y_test = np.repeat(y_test, 72000)
         y_test = y_test.reshape(x_test.shape[0], -1)
     except FileNotFoundError as e:
         logger.error(f"Error loading data: {e}")
@@ -85,7 +85,7 @@ def fit_and_evaluate_model(
     y_test: np.ndarray,
     model_path: str,
     majority: bool = False,
-    n_components: int = 100  # Number of components for PCA
+    n_components: int = 100,  # Number of components for PCA
 ) -> float:
     # Convert numpy arrays to cupy arrays
     # x_train_gpu = cp.asarray(x_train)
@@ -105,7 +105,7 @@ def fit_and_evaluate_model(
     # x_test_pca = pca.transform(x_test_gpu)
 
     # Train the model
-    model = LogisticRegression(max_iter=1000)
+    model = LogisticRegression(max_iter=5000)
     model.fit(x_train_gpu, y_train_gpu)
 
     # Save the model (you might need to adjust this for GPU models)
@@ -114,14 +114,16 @@ def fit_and_evaluate_model(
 
     # Predict and calculate accuracy
     y_pred = model.predict(x_test_gpu)
-    
+
     if majority:
         # Adjust majority vote calculation if needed
         y_pred_reshaped = y_pred.reshape(-1, 100)
         y_pred_majority_vote = np.apply_along_axis(
             lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred_reshaped
         )
-        accuracy = accuracy_score(cp.asnumpy(y_test_gpu[::100]), cp.asnumpy(y_pred_majority_vote))
+        accuracy = accuracy_score(
+            cp.asnumpy(y_test_gpu[::100]), cp.asnumpy(y_pred_majority_vote)
+        )
     else:
         accuracy = accuracy_score(cp.asnumpy(y_test_gpu), cp.asnumpy(y_pred))
 
@@ -151,7 +153,9 @@ def evaluate_model(
                 x_test,
                 y_test,
                 config["model_path"],
-                n_components=config.get("n_components", 100)  # Default to 100 if not specified
+                n_components=config.get(
+                    "n_components", 100
+                ),  # Default to 100 if not specified
             )
             accuracies.append(accuracy)
 
@@ -162,7 +166,9 @@ def evaluate_model(
                 y_test,
                 config["model_path"],
                 majority=True,
-                n_components=config.get("n_components", 100)  # Default to 100 if not specified
+                n_components=config.get(
+                    "n_components", 100
+                ),  # Default to 100 if not specified
             )
             accuracies_majority.append(accuracy_majority)
 
