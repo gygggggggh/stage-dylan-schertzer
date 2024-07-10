@@ -4,7 +4,7 @@ import torch.nn as nn
 from lightly.loss import NTXentLoss
 from lightly.models.modules.heads import SimCLRProjectionHead
 
-from python.simCLR_IT.inception import InceptionBlock
+from inception import InceptionBlock
 
 
 class Flatten(nn.Module):
@@ -25,7 +25,7 @@ class SimCLRModuleIT(pl.LightningModule):
                 in_channels=12,
                 n_filters=256,
                 kernel_sizes=[9, 19, 39],
-                bottleneck_channels=32,
+                bottleneck_channels=16,
                 use_residual=True,
                 activation=nn.ReLU(),
             ),
@@ -33,15 +33,7 @@ class SimCLRModuleIT(pl.LightningModule):
                 in_channels=256 * 4,
                 n_filters=256,
                 kernel_sizes=[9, 19, 39],
-                bottleneck_channels=32,
-                use_residual=True,
-                activation=nn.ReLU(),
-            ),
-            InceptionBlock(
-                in_channels=256 * 4,
-                n_filters=256,
-                kernel_sizes=[9, 19, 39],
-                bottleneck_channels=32,
+                bottleneck_channels=16,
                 use_residual=True,
                 activation=nn.ReLU(),
             ),
