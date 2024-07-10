@@ -10,7 +10,7 @@ from sklearn.metrics import accuracy_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from python.dataset import NPYDatasetAll
+from dataset import NPYDatasetAll
 
 
 def setup_logging(log_file: str) -> None:

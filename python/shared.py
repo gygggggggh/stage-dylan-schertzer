@@ -8,7 +8,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
-from python.dataset import NPYDataset
+from dataset import NPYDataset
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
