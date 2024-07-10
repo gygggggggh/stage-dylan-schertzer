@@ -7,7 +7,6 @@ from cuml.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from tqdm import tqdm
 
-# Configure logging
 logging.basicConfig(
     filename="testLR.log",
     level=logging.INFO,
@@ -51,12 +50,6 @@ def select_samples_per_class(
     selected_x = np.concatenate(selected_x)
     selected_y = np.concatenate(selected_y)
 
-    # selected_x = selected_x.reshape(-1, 7200000)
-    # selected_y = selected_y.repeat(72000)
-    # selected_y = np.expand_dims(selected_y, axis=0)
-
-    print(f"selected_x shape: {selected_x.shape}")
-    print(f"selected_y shape: {selected_y.shape}")
     return selected_x, selected_y
 
 
@@ -64,11 +57,8 @@ def load_data(config: dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndar
     try:
         x_train = np.load(config["x_train_path"])
         y_train = np.load(config["y_train_path"])
-        x_test = np.load(config["x_test_path"]).astype(np.float32)
-        y_test = np.load(config["y_test_path"]).astype(np.float32)
-        # x_test = x_test.reshape(-1, 7200000)
-        # y_test = np.repeat(y_test, 72000)
-        y_test = y_test.reshape(x_test.shape[0], -1)
+        x_test = np.load(config["x_test_path"])
+        y_test = np.load(config["y_test_path"])
     except FileNotFoundError as e:
         logger.error(f"Error loading data: {e}")
         raise
@@ -81,40 +71,23 @@ def fit_and_evaluate_model(
     y_train: np.ndarray,
     x_test: np.ndarray,
     y_test: np.ndarray,
-    model_path: str,
     majority: bool = False,
-    n_components: int = 100,  # Number of components for PCA
 ) -> float:
-    # Convert numpy arrays to cupy arrays
-    # x_train_gpu = cp.asarray(x_train)
-    # y_train_gpu = cp.asarray(y_train)
-    # x_test_gpu = cp.asarray(x_test)
-    # y_test_gpu = cp.asarray(y_test)
-
     # Reshape the data
     x_train_gpu = x_train.reshape(x_train.shape[0] * 100, -1)
     x_test_gpu = x_test.reshape(x_test.shape[0] * 100, -1)
     y_train_gpu = y_train.repeat(100)
     y_test_gpu = y_test.repeat(100)
 
-    # Apply PCA for dimensionality reduction
-    # pca = PCA(n_components=n_components)
-    # x_train_pca = pca.fit_transform(x_train_gpu)
-    # x_test_pca = pca.transform(x_test_gpu)
-
     # Train the model
     model = LogisticRegression(max_iter=5000)
     model.fit(x_train_gpu, y_train_gpu)
 
-    # Save the model (you might need to adjust this for GPU models)
-    # Path(model_path).parent.mkdir(parents=True, exist_ok=True)
-    # joblib.dump((pca, model), model_path)
-
-    # Predict and calculate accuracy
+    # Predict
     y_pred = model.predict(x_test_gpu)
 
+    # Compute accuracy
     if majority:
-        # Adjust majority vote calculation if needed
         y_pred_reshaped = y_pred.reshape(-1, 100)
         y_pred_majority_vote = np.apply_along_axis(
             lambda x: np.bincount(x).argmax(), axis=1, arr=y_pred_reshaped
@@ -123,7 +96,7 @@ def fit_and_evaluate_model(
             cp.asnumpy(y_test_gpu[::100]), cp.asnumpy(y_pred_majority_vote)
         )
     else:
-        accuracy = accuracy_score(y_test.ravel(), y_pred)
+        accuracy = accuracy_score(y_test_gpu, y_pred)
 
     return accuracy
 
@@ -150,7 +123,6 @@ def evaluate_model(
                 y_train_selected,
                 x_test,
                 y_test,
-                config["model_path"],
             )
             accuracies.append(accuracy)
 
@@ -159,7 +131,6 @@ def evaluate_model(
                 y_train_selected,
                 x_test,
                 y_test,
-                config["model_path"],
                 majority=True,
             )
             accuracies_majority.append(accuracy_majority)
@@ -172,9 +143,11 @@ def evaluate_model(
 
 def main(config: dict):
     logger.info("Starting Logistic Regression evaluation")
+
     x_train, y_train, x_test, y_test = load_data(config)
     seeds = get_random_seeds(config["num_seeds"])
     evaluate_model(x_train, y_train, x_test, y_test, config["n_values"], seeds, config)
+
     logger.info("Evaluation complete")
 
 
