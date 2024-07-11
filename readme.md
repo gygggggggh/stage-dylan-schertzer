@@ -1,11 +1,12 @@
 # SimCLR and Logistic Regression for Time Series Classification
 
 This project implements SimCLR (Simple Framework for Contrastive Learning of Visual Representations) and Logistic Regression for time series classification tasks.
+Two encoder backbones are available: ResNet and InceptionTime.
 
 ## Project Structure
 
 - `data/`: Data directory
-- `graph.py`: Performance visualization
+- `graph.py`: Display accuracy results from logs in a table
 - `main.py`: Main script for training and testing
 - `simCLR_resnet/`: SimCLR with ResNet backbone
 - `simclr_IT/`: SimCLR with InceptionTime backbone
@@ -26,7 +27,7 @@ This project implements SimCLR (Simple Framework for Contrastive Learning of Vis
 ## Setup and Execution
 
 1. Install dependencies: PyTorch, PyTorch Lightning, NumPy, scikit-learn, cuML, tqdm, matplotlib, pandas
-2. Place data in `data/` directory
+2. Move data files in `data/` directory
 3. Run: `python main.py`
 
 ## Configuration
@@ -40,17 +41,17 @@ Key parameters (adjust in respective scripts):
 ## Evaluation
 
 - Few-shot learning performance (5, 10, 50, 100 samples per class)
-- Majority voting over 100 time series per sample (5, 10, 50, 100 samples per class)
+- Majority voting over 100 time series per sample (5, 10, 50, 100 samples per class). Each sample is an agricultural parcel with 100 time series.
 
 ## Logging
 
-- `testRN.log`: SimCLR+ResNet testing
-- `testLR.log`: Logistic Regression testing
-- `testIT.log`: SimCLR+InceptionTime testing
+- `testRN.log`: SimCLR+ResNet logs
+- `testLR.log`: Logistic Regression logs
+- `testIT.log`: SimCLR+InceptionTime logs
 
 ## Results
 
-Check log files for accuracy results. Use `graph.py` for performance visualizations.
+Check log files for accuracy results. Use `graph.py` for visualization in a table.
 
 ## Note
 
