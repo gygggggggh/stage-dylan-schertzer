@@ -25,8 +25,8 @@ def run_script(script_path: str) -> None:
 
 def main() -> None:
     scripts: List[str] = [
-        "python/simclr_IT/trainIT.py",
-        "python/simclr_IT/testIT.py",
+        "python/simCLR_IT/trainIT.py",
+        "python/simCLR_IT/testIT.py",
         "python/simCLR_resnet/trainRN.py",
         "python/simCLR_resnet/testRN.py",
         "python/LR/train_testLR.py",
