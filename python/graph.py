@@ -69,6 +69,7 @@ def plot_results(table, table_majority):
     plot_table(axs[1], table_majority, "Majority Vote Accuracy")
     plt.tight_layout()
     plt.show()
+    plt.savefig('graph')
 
 
 def main():
